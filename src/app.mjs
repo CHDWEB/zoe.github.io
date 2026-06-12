@@ -7,6 +7,7 @@ import {
   getSessionSummary,
   isLevelPassed,
 } from "./logic.mjs";
+import { createSoundController } from "./sound.mjs";
 
 const STORAGE_KEY = "math-speed-kids-progress-v1";
 const CHALLENGE_SECONDS = 60;
@@ -39,10 +40,13 @@ const els = {
   startPractice: document.querySelector("#startPractice"),
   startChallenge: document.querySelector("#startChallenge"),
   nextLevel: document.querySelector("#nextLevel"),
+  toggleSound: document.querySelector("#toggleSound"),
   resetProgress: document.querySelector("#resetProgress"),
   summary: document.querySelector("#summary"),
   summaryText: document.querySelector("#summaryText"),
 };
+
+const sound = createSoundController();
 
 function loadProgress() {
   try {
@@ -108,6 +112,7 @@ function finishRound(reason) {
   }
 
   const summary = getSessionSummary(state.session);
+  sound.play(reason === "时间到啦" ? "finish" : "level");
   els.summary.hidden = false;
   els.summaryText.textContent = `${reason}：答对 ${summary.correct}/${summary.total}，正确率 ${summary.accuracy}% ，平均 ${summary.averageSeconds}s/题。`;
 
@@ -131,6 +136,7 @@ function advanceToNextLevel() {
   setMode("practice");
   els.feedback.textContent = "进入下一关";
   els.feedback.dataset.tone = "good";
+  sound.play("level");
 }
 
 function submitAnswer() {
@@ -142,9 +148,11 @@ function submitAnswer() {
   if (correct) {
     els.feedback.textContent = praise();
     els.feedback.dataset.tone = "good";
+    sound.play(state.session.streak > 0 && state.session.streak % 5 === 0 ? "streak" : "correct");
   } else {
     els.feedback.textContent = `差一点，正确答案是 ${expected}`;
     els.feedback.dataset.tone = "try";
+    sound.play("wrong");
   }
 
   if (state.mode === "practice" && state.session.correct >= currentLevel().goalCorrect) {
@@ -171,6 +179,7 @@ function praise() {
 
 function handleDigit(value) {
   if (!state.session) setMode("practice");
+  if (value !== "enter") sound.play("tap");
   if (value === "back") {
     state.input = state.input.slice(0, -1);
   } else if (value === "clear") {
@@ -226,6 +235,8 @@ function render() {
   els.accuracy.textContent = `${summary.accuracy}%`;
   els.streak.textContent = `${state.session?.streak ?? 0}`;
   els.progress.style.width = `${Math.min(100, (summary.correct / level.goalCorrect) * 100)}%`;
+  els.toggleSound.textContent = sound.isEnabled() ? "声音开" : "声音关";
+  els.toggleSound.setAttribute("aria-pressed", String(sound.isEnabled()));
   renderLevels();
 }
 
@@ -252,6 +263,11 @@ els.startPractice.addEventListener("click", () => setMode("practice"));
 els.startChallenge.addEventListener("click", () => setMode("challenge"));
 els.nextLevel.addEventListener("click", () => {
   advanceToNextLevel();
+});
+els.toggleSound.addEventListener("click", () => {
+  const enabled = sound.toggle();
+  if (enabled) sound.play("tap");
+  render();
 });
 els.resetProgress.addEventListener("click", () => {
   state.currentLevelIndex = 0;

@@ -1,10 +1,11 @@
-const CACHE_NAME = "math-speed-kids-v3";
+const CACHE_NAME = "math-speed-kids-v4";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./src/app.mjs",
   "./src/logic.mjs",
+  "./src/sound.mjs",
   "./assets/rocket.svg",
   "./manifest.webmanifest",
 ];
