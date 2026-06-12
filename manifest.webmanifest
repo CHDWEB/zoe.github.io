@@ -1,0 +1,16 @@
+{
+  "name": "算术小火箭",
+  "short_name": "算术小火箭",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fffef8",
+  "theme_color": "#2f7d6b",
+  "description": "面向小朋友的20以内加减法速度与准确率练习小游戏。",
+  "icons": [
+    {
+      "src": "./assets/rocket.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

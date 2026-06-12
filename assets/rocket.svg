@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 420" role="img" aria-labelledby="title desc">
+  <title id="title">算术小火箭</title>
+  <desc id="desc">带着数字星星飞行的小火箭</desc>
+  <rect width="420" height="420" rx="36" fill="#e3f8ff"/>
+  <circle cx="82" cy="92" r="22" fill="#ffd166"/>
+  <circle cx="318" cy="96" r="12" fill="#83c5ff"/>
+  <circle cx="345" cy="300" r="18" fill="#ff8a7a"/>
+  <path d="M117 321c28-8 62-12 100-12 43 0 77 5 104 15" fill="none" stroke="#2f7d6b" stroke-width="16" stroke-linecap="round"/>
+  <path d="M225 64c54 29 88 83 93 162l-68 62-101-26-29-101c38-55 73-87 105-97z" fill="#ffffff" stroke="#17352e" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M225 64c16 9 31 20 44 34l-50 50-45-12c17-32 34-56 51-72z" fill="#ff8a7a" stroke="#17352e" stroke-width="10" stroke-linejoin="round"/>
+  <circle cx="224" cy="183" r="35" fill="#83c5ff" stroke="#17352e" stroke-width="10"/>
+  <path d="M149 262l-50 47 65 12 34-42z" fill="#ffd166" stroke="#17352e" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M250 288l-14 52 62-23 20-63z" fill="#ffd166" stroke="#17352e" stroke-width="10" stroke-linejoin="round"/>
+  <path d="M145 275c-32 19-53 43-63 73 31-9 55-29 75-61z" fill="#ff8a7a" stroke="#17352e" stroke-width="9" stroke-linejoin="round"/>
+  <g font-family="Arial Rounded MT Bold, Arial, sans-serif" font-size="34" font-weight="900" fill="#17352e">
+    <text x="75" y="215">8</text>
+    <text x="330" y="212">+</text>
+    <text x="308" y="357">5</text>
+    <text x="45" y="350">13</text>
+  </g>
+</svg>
