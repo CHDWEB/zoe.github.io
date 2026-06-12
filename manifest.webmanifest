@@ -1,6 +1,6 @@
 {
-  "name": "算术小火箭",
-  "short_name": "算术小火箭",
+  "name": "Zoe的算数通关",
+  "short_name": "Zoe算数",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#fffef8",

@@ -70,8 +70,8 @@ function setMode(mode) {
   state.mode = mode;
   state.session = createSession({ mode });
   state.input = "";
-  state.summary.hidden = true;
-  state.nextLevel.disabled = true;
+  els.summary.hidden = true;
+  els.nextLevel.disabled = true;
 
   if (state.timerId) {
     window.clearInterval(state.timerId);
@@ -112,11 +112,25 @@ function finishRound(reason) {
   els.summaryText.textContent = `${reason}：答对 ${summary.correct}/${summary.total}，正确率 ${summary.accuracy}% ，平均 ${summary.averageSeconds}s/题。`;
 
   const passed = state.mode === "practice" && isLevelPassed(state.session, currentLevel());
-  state.nextLevel.disabled = !passed || state.currentLevelIndex >= state.levels.length - 1;
+  els.nextLevel.disabled = !passed || state.currentLevelIndex >= state.levels.length - 1;
   if (passed) {
     els.feedback.textContent = "这一关达标了，可以去下一关。";
     els.feedback.dataset.tone = "good";
   }
+}
+
+function advanceToNextLevel() {
+  if (state.currentLevelIndex >= state.levels.length - 1) {
+    finishRound("全部关卡完成");
+    render();
+    return;
+  }
+
+  state.currentLevelIndex += 1;
+  saveProgress();
+  setMode("practice");
+  els.feedback.textContent = "进入下一关";
+  els.feedback.dataset.tone = "good";
 }
 
 function submitAnswer() {
@@ -134,8 +148,10 @@ function submitAnswer() {
   }
 
   if (state.mode === "practice" && state.session.correct >= currentLevel().goalCorrect) {
-    finishRound("本关完成");
+    els.feedback.textContent = "本关完成，准备下一关";
+    els.feedback.dataset.tone = "good";
     render();
+    window.setTimeout(advanceToNextLevel, 700);
     return;
   }
 
@@ -235,9 +251,7 @@ function buildKeypad() {
 els.startPractice.addEventListener("click", () => setMode("practice"));
 els.startChallenge.addEventListener("click", () => setMode("challenge"));
 els.nextLevel.addEventListener("click", () => {
-  state.currentLevelIndex = Math.min(state.currentLevelIndex + 1, state.levels.length - 1);
-  saveProgress();
-  setMode("practice");
+  advanceToNextLevel();
 });
 els.resetProgress.addEventListener("click", () => {
   state.currentLevelIndex = 0;
