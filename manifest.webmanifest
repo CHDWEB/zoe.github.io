@@ -1,11 +1,11 @@
 {
-  "name": "Zoe的算数通关",
-  "short_name": "Zoe算数",
+  "name": "Zoe的学习闯关",
+  "short_name": "Zoe学习",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#fffef8",
   "theme_color": "#2f7d6b",
-  "description": "面向小朋友的100以内两位数加减法速度与准确率练习小游戏。",
+  "description": "面向小朋友的数学、英语和语文学习小游戏入口。",
   "icons": [
     {
       "src": "./assets/rocket.svg",

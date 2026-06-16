@@ -7,9 +7,24 @@ import {
   getSessionSummary,
   isLevelPassed,
 } from "./logic.mjs";
+import {
+  createSentencePlan,
+  createSentenceQuestion,
+  createWordPlan,
+  createWordQuestion,
+} from "./english.mjs";
+import {
+  SIZE as SUDOKU_SIZE,
+  cellKey,
+  createSudokuGame,
+  findConflicts,
+  isSolved,
+  listSudokuPuzzles,
+} from "./sudoku.mjs";
 import { createSoundController } from "./sound.mjs";
 
 const STORAGE_KEY = "math-speed-kids-progress-v1";
+const ENGLISH_STORAGE_KEY = "english-speed-kids-progress-v1";
 const CHALLENGE_SECONDS = 60;
 
 const state = {
@@ -23,8 +38,48 @@ const state = {
   challengeEndsAt: 0,
 };
 
+const englishState = {
+  wordLevels: createWordPlan(),
+  sentenceLevels: createSentencePlan(),
+  mode: "word",
+  wordLevelIndex: 0,
+  sentenceLevelIndex: 0,
+  usedWords: new Set(),
+  session: null,
+  question: null,
+};
+
+const sudokuState = {
+  game: createSudokuGame(0),
+  puzzleIndex: 0,
+  difficulty: "simple",
+  selected: null,
+};
+
+const sudokuPuzzles = listSudokuPuzzles();
+
 const els = {
   app: document.querySelector("#app"),
+  lobby: document.querySelector("#lobby"),
+  mathGame: document.querySelector("#mathGame"),
+  englishGame: document.querySelector("#englishGame"),
+  openMath: document.querySelector("#openMath"),
+  openEnglish: document.querySelector("#openEnglish"),
+  backFromMath: document.querySelector("#backFromMath"),
+  backFromMathMenu: document.querySelector("#backFromMathMenu"),
+  mathModeMenu: document.querySelector("#mathModeMenu"),
+  openArithmetic: document.querySelector("#openArithmetic"),
+  openSudoku: document.querySelector("#openSudoku"),
+  arithmeticGame: document.querySelector("#arithmeticGame"),
+  sudokuGame: document.querySelector("#sudokuGame"),
+  backFromArithmetic: document.querySelector("#backFromArithmetic"),
+  backFromSudoku: document.querySelector("#backFromSudoku"),
+  backFromEnglishMenu: document.querySelector("#backFromEnglishMenu"),
+  englishModeMenu: document.querySelector("#englishModeMenu"),
+  openWordGame: document.querySelector("#openWordGame"),
+  openSentenceGame: document.querySelector("#openSentenceGame"),
+  englishPractice: document.querySelector("#englishPractice"),
+  backFromEnglishPractice: document.querySelector("#backFromEnglishPractice"),
   levelTitle: document.querySelector("#levelTitle"),
   levelDescription: document.querySelector("#levelDescription"),
   problem: document.querySelector("#problem"),
@@ -46,6 +101,32 @@ const els = {
   resetProgress: document.querySelector("#resetProgress"),
   summary: document.querySelector("#summary"),
   summaryText: document.querySelector("#summaryText"),
+  englishLevelTitle: document.querySelector("#englishLevelTitle"),
+  englishLevelDescription: document.querySelector("#englishLevelDescription"),
+  englishMode: document.querySelector("#englishMode"),
+  englishLevelTrack: document.querySelector("#englishLevelTrack"),
+  englishScore: document.querySelector("#englishScore"),
+  englishAccuracy: document.querySelector("#englishAccuracy"),
+  englishStreak: document.querySelector("#englishStreak"),
+  englishProgress: document.querySelector("#englishProgress"),
+  englishPromptLabel: document.querySelector("#englishPromptLabel"),
+  englishWord: document.querySelector("#englishWord"),
+  speakWord: document.querySelector("#speakWord"),
+  englishFeedback: document.querySelector("#englishFeedback"),
+  englishChoices: document.querySelector("#englishChoices"),
+  startEnglish: document.querySelector("#startEnglish"),
+  toggleSoundEnglish: document.querySelector("#toggleSoundEnglish"),
+  resetEnglish: document.querySelector("#resetEnglish"),
+  englishSummary: document.querySelector("#englishSummary"),
+  englishSummaryText: document.querySelector("#englishSummaryText"),
+  sudokuStatus: document.querySelector("#sudokuStatus"),
+  sudokuGrid: document.querySelector("#sudokuGrid"),
+  sudokuFeedback: document.querySelector("#sudokuFeedback"),
+  sudokuSimple: document.querySelector("#sudokuSimple"),
+  sudokuNormal: document.querySelector("#sudokuNormal"),
+  sudokuPad: document.querySelector("#sudokuPad"),
+  newSudoku: document.querySelector("#newSudoku"),
+  resetSudoku: document.querySelector("#resetSudoku"),
 };
 
 const sound = createSoundController();
@@ -61,6 +142,23 @@ function loadProgress() {
   }
 }
 
+function loadEnglishProgress() {
+  try {
+    const progress = JSON.parse(localStorage.getItem(ENGLISH_STORAGE_KEY) || "{}");
+    if (Number.isInteger(progress.wordLevelIndex)) {
+      englishState.wordLevelIndex = Math.min(progress.wordLevelIndex, englishState.wordLevels.length - 1);
+    } else if (Number.isInteger(progress.currentLevelIndex)) {
+      englishState.wordLevelIndex = Math.min(progress.currentLevelIndex, englishState.wordLevels.length - 1);
+    }
+    if (Number.isInteger(progress.sentenceLevelIndex)) {
+      englishState.sentenceLevelIndex = Math.min(progress.sentenceLevelIndex, englishState.sentenceLevels.length - 1);
+    }
+  } catch {
+    englishState.wordLevelIndex = 0;
+    englishState.sentenceLevelIndex = 0;
+  }
+}
+
 function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     currentLevelIndex: state.currentLevelIndex,
@@ -68,8 +166,67 @@ function saveProgress() {
   }));
 }
 
+function saveEnglishProgress() {
+  localStorage.setItem(ENGLISH_STORAGE_KEY, JSON.stringify({
+    wordLevelIndex: englishState.wordLevelIndex,
+    sentenceLevelIndex: englishState.sentenceLevelIndex,
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
 function currentLevel() {
   return state.levels[state.currentLevelIndex];
+}
+
+function currentEnglishLevel() {
+  return englishState.mode === "sentence"
+    ? englishState.sentenceLevels[englishState.sentenceLevelIndex]
+    : englishState.wordLevels[englishState.wordLevelIndex];
+}
+
+function showScreen(screen) {
+  els.lobby.hidden = screen !== "lobby";
+  els.mathGame.hidden = screen !== "math";
+  els.englishGame.hidden = screen !== "english";
+}
+
+function showLobby() {
+  if (state.timerId) {
+    window.clearInterval(state.timerId);
+    state.timerId = null;
+  }
+  showScreen("lobby");
+}
+
+function showMathMenu() {
+  showScreen("math");
+  els.mathModeMenu.hidden = false;
+  els.arithmeticGame.hidden = true;
+  els.sudokuGame.hidden = true;
+}
+
+function showArithmetic() {
+  els.mathModeMenu.hidden = true;
+  els.arithmeticGame.hidden = false;
+  els.sudokuGame.hidden = true;
+}
+
+function showSudoku() {
+  els.mathModeMenu.hidden = true;
+  els.arithmeticGame.hidden = true;
+  els.sudokuGame.hidden = false;
+}
+
+function showEnglishMenu() {
+  showScreen("english");
+  els.englishModeMenu.hidden = false;
+  els.englishPractice.hidden = true;
+}
+
+function showEnglishPractice() {
+  showScreen("english");
+  els.englishModeMenu.hidden = true;
+  els.englishPractice.hidden = false;
 }
 
 function setMode(mode) {
@@ -91,6 +248,18 @@ function setMode(mode) {
 
   newQuestion();
   render();
+}
+
+function startMath(mode = "practice") {
+  showScreen("math");
+  showArithmetic();
+  setMode(mode);
+}
+
+function openSudokuGame() {
+  showScreen("math");
+  showSudoku();
+  setSudokuDifficulty(sudokuState.difficulty);
 }
 
 function newQuestion() {
@@ -214,6 +383,264 @@ function renderLevels() {
   });
 }
 
+function startEnglish(mode = "word") {
+  englishState.mode = mode;
+  englishState.usedWords = new Set();
+  showEnglishPractice();
+  englishState.session = createSession({ mode: "english" });
+  els.englishSummary.hidden = true;
+  newEnglishQuestion();
+  renderEnglish();
+}
+
+function newEnglishQuestion() {
+  if (englishState.mode === "sentence") {
+    englishState.question = createSentenceQuestion(currentEnglishLevel());
+  } else {
+    englishState.question = createWordQuestion(currentEnglishLevel(), Math.random, englishState.usedWords);
+    englishState.usedWords.add(englishState.question.word);
+  }
+  startQuestion(englishState.session);
+}
+
+function speakCurrentWord() {
+  const text = englishState.question?.speakText || englishState.question?.word;
+  if (!text || !("speechSynthesis" in window) || typeof SpeechSynthesisUtterance === "undefined") return;
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-US";
+  utterance.rate = 0.82;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function answerEnglish(choice) {
+  if (!englishState.session || !englishState.question) return;
+  const correct = answerQuestion(englishState.session, englishState.question, choice);
+
+  if (correct) {
+    els.englishFeedback.textContent = englishState.session.streak > 0 && englishState.session.streak % 5 === 0
+      ? "连对奖励"
+      : "答对啦";
+    els.englishFeedback.dataset.tone = "good";
+    sound.play(englishState.session.streak > 0 && englishState.session.streak % 5 === 0 ? "streak" : "correct");
+  } else {
+    els.englishFeedback.textContent = `正确答案是 ${englishState.question.answer}`;
+    els.englishFeedback.dataset.tone = "try";
+    sound.play("wrong");
+  }
+
+  if (englishState.session.correct >= currentEnglishLevel().goalCorrect) {
+    els.englishFeedback.textContent = "本关完成，准备下一关";
+    els.englishFeedback.dataset.tone = "good";
+    renderEnglish();
+    window.setTimeout(advanceEnglishLevel, 700);
+    return;
+  }
+
+  window.setTimeout(() => {
+    newEnglishQuestion();
+    renderEnglish();
+  }, correct ? 450 : 850);
+  renderEnglish();
+}
+
+function advanceEnglishLevel() {
+  const levels = englishState.mode === "sentence" ? englishState.sentenceLevels : englishState.wordLevels;
+  const currentIndex = englishState.mode === "sentence" ? englishState.sentenceLevelIndex : englishState.wordLevelIndex;
+  if (currentIndex >= levels.length - 1) {
+    const summary = getSessionSummary(englishState.session);
+    sound.play("finish");
+    els.englishSummary.hidden = false;
+    els.englishSummaryText.textContent = `全部关卡完成：答对 ${summary.correct}/${summary.total}，正确率 ${summary.accuracy}% 。`;
+    renderEnglish();
+    return;
+  }
+
+  if (englishState.mode === "sentence") {
+    englishState.sentenceLevelIndex += 1;
+  } else {
+    englishState.wordLevelIndex += 1;
+  }
+  saveEnglishProgress();
+  startEnglish(englishState.mode);
+  els.englishFeedback.textContent = "进入下一关";
+  els.englishFeedback.dataset.tone = "good";
+  sound.play("level");
+}
+
+function renderEnglishLevels() {
+  els.englishLevelTrack.innerHTML = "";
+  const levels = englishState.mode === "sentence" ? englishState.sentenceLevels : englishState.wordLevels;
+  const currentIndex = englishState.mode === "sentence" ? englishState.sentenceLevelIndex : englishState.wordLevelIndex;
+  levels.forEach((level, index) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "level-dot";
+    item.textContent = index + 1;
+    item.ariaLabel = level.title;
+    item.disabled = index > currentIndex;
+    item.dataset.active = String(index === currentIndex);
+    item.addEventListener("click", () => {
+      if (englishState.mode === "sentence") {
+        englishState.sentenceLevelIndex = index;
+      } else {
+        englishState.wordLevelIndex = index;
+      }
+      saveEnglishProgress();
+      startEnglish(englishState.mode);
+    });
+    els.englishLevelTrack.append(item);
+  });
+}
+
+function renderEnglish() {
+  const level = currentEnglishLevel();
+  const summary = englishState.session ? getSessionSummary(englishState.session) : {
+    total: 0,
+    correct: 0,
+    accuracy: 0,
+    bestStreak: 0,
+  };
+
+  els.englishLevelTitle.textContent = level.title;
+  els.englishLevelDescription.textContent = level.description;
+  els.englishMode.textContent = "练习";
+  els.englishPromptLabel.textContent = englishState.mode === "sentence" ? "请选择正确的单词" : "请选择中文意思";
+  els.englishWord.textContent = englishState.question?.prompt || englishState.question?.word || "ready";
+  els.englishScore.textContent = `${summary.correct}/${Math.max(summary.total, level.goalCorrect)}`;
+  els.englishAccuracy.textContent = `${summary.accuracy}%`;
+  els.englishStreak.textContent = `${englishState.session?.streak ?? 0}`;
+  els.englishProgress.style.width = `${Math.min(100, (summary.correct / level.goalCorrect) * 100)}%`;
+  els.toggleSoundEnglish.textContent = sound.isEnabled() ? "声音开" : "声音关";
+  els.toggleSoundEnglish.setAttribute("aria-pressed", String(sound.isEnabled()));
+
+  els.englishChoices.innerHTML = "";
+  (englishState.question?.options || []).forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-button";
+    button.textContent = option;
+    button.dataset.choice = option;
+    button.addEventListener("click", () => answerEnglish(option));
+    els.englishChoices.append(button);
+  });
+
+  renderEnglishLevels();
+}
+
+function selectSudokuCell(row, col) {
+  if (sudokuState.game.givens.has(cellKey(row, col))) return;
+  sudokuState.selected = { row, col };
+  sound.play("tap");
+  renderSudoku();
+}
+
+function setSudokuValue(value) {
+  if (!sudokuState.selected) return;
+  const { row, col } = sudokuState.selected;
+  if (sudokuState.game.givens.has(cellKey(row, col))) return;
+  sudokuState.game.entries[row][col] = value;
+  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens);
+
+  if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens)) {
+    els.sudokuFeedback.textContent = "数独完成啦";
+    els.sudokuFeedback.dataset.tone = "good";
+    sound.play("finish");
+  } else if (conflicts.size > 0) {
+    els.sudokuFeedback.textContent = "有重复数字，换个格子试试";
+    els.sudokuFeedback.dataset.tone = "try";
+    sound.play("wrong");
+  } else {
+    els.sudokuFeedback.textContent = "继续推理";
+    els.sudokuFeedback.dataset.tone = "good";
+    sound.play("correct");
+  }
+
+  renderSudoku();
+}
+
+function resetSudokuGame() {
+  sudokuState.game.entries = sudokuState.game.puzzle.map((row) => [...row]);
+  sudokuState.selected = null;
+  els.sudokuFeedback.textContent = "先点空格，再选择数字";
+  els.sudokuFeedback.dataset.tone = "neutral";
+  renderSudoku();
+}
+
+function sudokuIndexForDifficulty(difficulty, offset = 0) {
+  const matches = sudokuPuzzles
+    .map((puzzle, index) => ({ puzzle, index }))
+    .filter((item) => item.puzzle.difficulty === difficulty);
+  return matches[offset % matches.length].index;
+}
+
+function setSudokuDifficulty(difficulty) {
+  sudokuState.difficulty = difficulty;
+  sudokuState.puzzleIndex = sudokuIndexForDifficulty(difficulty);
+  sudokuState.game = createSudokuGame(sudokuState.puzzleIndex);
+  sudokuState.selected = null;
+  els.sudokuFeedback.textContent = difficulty === "simple" ? "简单题来了" : "普通题来了";
+  els.sudokuFeedback.dataset.tone = "neutral";
+  renderSudoku();
+}
+
+function nextSudokuGame() {
+  const currentDifficultyPuzzles = sudokuPuzzles
+    .map((puzzle, index) => ({ puzzle, index }))
+    .filter((item) => item.puzzle.difficulty === sudokuState.difficulty);
+  const currentOffset = Math.max(0, currentDifficultyPuzzles.findIndex((item) => item.index === sudokuState.puzzleIndex));
+  sudokuState.puzzleIndex = currentDifficultyPuzzles[(currentOffset + 1) % currentDifficultyPuzzles.length].index;
+  sudokuState.game = createSudokuGame(sudokuState.puzzleIndex);
+  sudokuState.selected = null;
+  els.sudokuFeedback.textContent = "新题来了";
+  els.sudokuFeedback.dataset.tone = "good";
+  sound.play("level");
+  renderSudoku();
+}
+
+function renderSudoku() {
+  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens);
+  els.sudokuGrid.innerHTML = "";
+
+  for (let row = 0; row < SUDOKU_SIZE; row += 1) {
+    for (let col = 0; col < SUDOKU_SIZE; col += 1) {
+      const button = document.createElement("button");
+      const key = cellKey(row, col);
+      const value = sudokuState.game.entries[row][col];
+      button.type = "button";
+      button.className = "sudoku-cell";
+      button.textContent = value || "";
+      button.dataset.row = String(row);
+      button.dataset.col = String(col);
+      button.dataset.given = String(sudokuState.game.givens.has(key));
+      button.dataset.conflict = String(conflicts.has(key));
+      button.dataset.selected = String(sudokuState.selected?.row === row && sudokuState.selected?.col === col);
+      button.addEventListener("click", () => selectSudokuCell(row, col));
+      els.sudokuGrid.append(button);
+    }
+  }
+
+  els.sudokuPad.innerHTML = "";
+  for (let value = 1; value <= SUDOKU_SIZE; value += 1) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sudoku-key";
+    button.textContent = String(value);
+    button.addEventListener("click", () => setSudokuValue(value));
+    els.sudokuPad.append(button);
+  }
+  const clear = document.createElement("button");
+  clear.type = "button";
+  clear.className = "sudoku-key sudoku-clear";
+  clear.textContent = "清空格";
+  clear.addEventListener("click", () => setSudokuValue(0));
+  els.sudokuPad.append(clear);
+
+  els.sudokuStatus.textContent = conflicts.size > 0 ? "检查" : "推理";
+  els.sudokuSimple.dataset.active = String(sudokuState.difficulty === "simple");
+  els.sudokuNormal.dataset.active = String(sudokuState.difficulty === "normal");
+}
+
 function render() {
   const level = currentLevel();
   const expression = state.question
@@ -281,6 +708,17 @@ function buildKeypad() {
   });
 }
 
+els.openMath.addEventListener("click", () => showMathMenu());
+els.openEnglish.addEventListener("click", () => showEnglishMenu());
+els.backFromMathMenu.addEventListener("click", () => showLobby());
+els.openArithmetic.addEventListener("click", () => startMath("practice"));
+els.openSudoku.addEventListener("click", () => openSudokuGame());
+els.backFromArithmetic.addEventListener("click", () => showMathMenu());
+els.backFromSudoku.addEventListener("click", () => showMathMenu());
+els.backFromEnglishMenu.addEventListener("click", () => showLobby());
+els.openWordGame.addEventListener("click", () => startEnglish("word"));
+els.openSentenceGame.addEventListener("click", () => startEnglish("sentence"));
+els.backFromEnglishPractice.addEventListener("click", () => showEnglishMenu());
 els.startPractice.addEventListener("click", () => setMode("practice"));
 els.startChallenge.addEventListener("click", () => setMode("challenge"));
 els.nextLevel.addEventListener("click", () => {
@@ -296,6 +734,29 @@ els.resetProgress.addEventListener("click", () => {
   saveProgress();
   setMode("practice");
 });
+els.startEnglish.addEventListener("click", () => startEnglish(englishState.mode));
+els.speakWord.addEventListener("click", () => {
+  sound.play("tap");
+  speakCurrentWord();
+});
+els.toggleSoundEnglish.addEventListener("click", () => {
+  const enabled = sound.toggle();
+  if (enabled) sound.play("tap");
+  renderEnglish();
+});
+els.resetEnglish.addEventListener("click", () => {
+  if (englishState.mode === "sentence") {
+    englishState.sentenceLevelIndex = 0;
+  } else {
+    englishState.wordLevelIndex = 0;
+  }
+  saveEnglishProgress();
+  startEnglish(englishState.mode);
+});
+els.newSudoku.addEventListener("click", () => nextSudokuGame());
+els.resetSudoku.addEventListener("click", () => resetSudokuGame());
+els.sudokuSimple.addEventListener("click", () => setSudokuDifficulty("simple"));
+els.sudokuNormal.addEventListener("click", () => setSudokuDifficulty("normal"));
 
 window.addEventListener("keydown", (event) => {
   if (/^\d$/.test(event.key)) handleDigit(event.key);
@@ -310,5 +771,6 @@ if ("serviceWorker" in navigator) {
 }
 
 loadProgress();
+loadEnglishProgress();
 buildKeypad();
-setMode("practice");
+showLobby();

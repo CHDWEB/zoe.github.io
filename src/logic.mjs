@@ -125,7 +125,7 @@ export function startQuestion(session, now = () => Date.now()) {
 
 export function answerQuestion(session, question, givenAnswer, now = () => Date.now()) {
   const elapsedMs = Math.max(0, now() - session.questionStartedAt);
-  const correct = Number(givenAnswer) === question.answer;
+  const correct = givenAnswer === question.answer;
 
   session.total += 1;
   session.correct += correct ? 1 : 0;
@@ -134,7 +134,7 @@ export function answerQuestion(session, question, givenAnswer, now = () => Date.
   session.totalAnswerMs += elapsedMs;
   session.history.push({
     question,
-    givenAnswer: Number(givenAnswer),
+    givenAnswer,
     correct,
     elapsedMs,
   });

@@ -4,12 +4,37 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="theme-color" content="#2f7d6b">
-    <title>Zoe的算数通关</title>
+    <title>Zoe的学习闯关</title>
     <link rel="manifest" href="./manifest.webmanifest">
     <link rel="stylesheet" href="./styles.css">
   </head>
   <body>
-    <main id="app" class="shell">
+    <main id="app">
+      <section id="lobby" class="lobby-screen" aria-label="游戏入口">
+        <div class="lobby-title">
+          <p class="eyebrow">Zoe的学习乐园</p>
+          <h1>Zoe的学习闯关</h1>
+        </div>
+        <div class="game-menu" aria-label="选择游戏">
+          <button class="game-card math-card" id="openMath" type="button">
+            <span class="game-icon">123</span>
+            <span class="game-name">数学游戏</span>
+            <span class="game-desc">100以内两位数加减法</span>
+          </button>
+          <button class="game-card english-card" id="openEnglish" type="button">
+            <span class="game-icon">ABC</span>
+            <span class="game-name">英语游戏</span>
+            <span class="game-desc">看英文，选中文意思</span>
+          </button>
+          <button class="game-card chinese-card" id="openChinese" type="button" disabled>
+            <span class="game-icon">语文</span>
+            <span class="game-name">语文游戏</span>
+            <span class="game-desc">敬请期待</span>
+          </button>
+        </div>
+      </section>
+
+      <section id="mathGame" class="shell game-screen" aria-label="数学游戏" hidden>
       <section class="hero" aria-label="游戏区域">
         <div class="hero-art" aria-hidden="true">
           <img src="./assets/rocket.svg" alt="">
@@ -20,9 +45,31 @@
         </div>
       </section>
 
-      <section class="game-board" aria-label="答题面板">
+      <section class="game-board math-mode-board" id="mathModeMenu" aria-label="数学模式选择">
         <div class="topbar">
           <div>
+            <button class="back-button" id="backFromMathMenu" type="button">返回首页</button>
+            <p class="label">数学游戏</p>
+            <h2>选择一个数学挑战</h2>
+            <p class="muted">可以练计算，也可以练逻辑推理。</p>
+          </div>
+        </div>
+        <div class="mode-grid">
+          <button class="mode-card" id="openArithmetic" type="button">
+            <span class="mode-title">加减法闯关</span>
+            <span class="mode-desc">100以内两位数不进位、不退位</span>
+          </button>
+          <button class="mode-card" id="openSudoku" type="button">
+            <span class="mode-title">1-6 数独</span>
+            <span class="mode-desc">观察、排除、填满每一格</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="game-board" id="arithmeticGame" aria-label="答题面板" hidden>
+        <div class="topbar">
+          <div>
+            <button class="back-button" id="backFromArithmetic" type="button">返回数学游戏</button>
             <p class="label">当前关卡</p>
             <h2 id="levelTitle">准备开始</h2>
             <p id="levelDescription" class="muted">完成目标就能进入下一关。</p>
@@ -72,6 +119,119 @@
         <div class="summary" id="summary" hidden>
           <p id="summaryText"></p>
         </div>
+      </section>
+
+      <section class="game-board sudoku-board-wrap" id="sudokuGame" aria-label="数独面板" hidden>
+        <div class="topbar">
+          <div>
+            <button class="back-button" id="backFromSudoku" type="button">返回数学游戏</button>
+            <p class="label">1-6 数独</p>
+            <h2>填满每一行、每一列、每个小宫格</h2>
+            <p class="muted">每行、每列、每个 2x3 宫格都要出现 1 到 6。</p>
+          </div>
+          <div class="timer" id="sudokuStatus">推理</div>
+        </div>
+        <div class="sudoku-layout">
+          <div class="sudoku-grid" id="sudokuGrid" aria-label="1到6数独棋盘"></div>
+          <div class="sudoku-side">
+            <p class="feedback" id="sudokuFeedback" data-tone="neutral">先点空格，再选择数字</p>
+            <div class="difficulty-switch" aria-label="数独难度">
+              <button class="difficulty-button" id="sudokuSimple" type="button" data-active="true">简单</button>
+              <button class="difficulty-button" id="sudokuNormal" type="button">普通</button>
+            </div>
+            <div class="sudoku-pad" id="sudokuPad" aria-label="数独数字"></div>
+            <div class="actions">
+              <button class="action primary" id="newSudoku" type="button">换一题</button>
+              <button class="action quiet" id="resetSudoku" type="button">清空</button>
+            </div>
+          </div>
+        </div>
+      </section>
+      </section>
+
+      <section id="englishGame" class="shell game-screen" aria-label="英语游戏" hidden>
+        <section class="hero english-hero" aria-label="英语游戏区域">
+          <div class="hero-art english-art" aria-hidden="true">
+            <div class="abc-stack"><span>A</span><span>B</span><span>C</span></div>
+          </div>
+          <div class="hero-copy">
+            <p class="eyebrow">English Words</p>
+            <h1>英语单词闯关</h1>
+          </div>
+        </section>
+
+        <section class="game-board english-mode-board" id="englishModeMenu" aria-label="英语模式选择">
+          <div class="topbar">
+            <div>
+              <button class="back-button" id="backFromEnglishMenu" type="button">返回首页</button>
+              <p class="label">英语游戏</p>
+              <h2>选择一个英语挑战</h2>
+              <p class="muted">可以练单词，也可以练句子搭配。</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <button class="mode-card" id="openWordGame" type="button">
+              <span class="mode-title">单词闯关</span>
+              <span class="mode-desc">颜色、服饰、文具、月份、运动等</span>
+            </button>
+            <button class="mode-card" id="openSentenceGame" type="button">
+              <span class="mode-title">句子练习</span>
+              <span class="mode-desc">do / does 和 like / likes</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="game-board english-board" id="englishPractice" aria-label="英语答题面板" hidden>
+          <div class="topbar">
+            <div>
+              <button class="back-button" id="backFromEnglishPractice" type="button">返回英语游戏</button>
+              <p class="label">当前关卡</p>
+              <h2 id="englishLevelTitle">准备开始</h2>
+              <p id="englishLevelDescription" class="muted">看英文，选中文意思。</p>
+            </div>
+            <div class="timer" id="englishMode">练习</div>
+          </div>
+
+          <div class="level-track" id="englishLevelTrack" aria-label="英语关卡进度"></div>
+
+          <div class="stats" aria-label="英语成绩">
+            <div>
+              <span class="stat-value" id="englishScore">0/8</span>
+              <span class="stat-label">答对</span>
+            </div>
+            <div>
+              <span class="stat-value" id="englishAccuracy">0%</span>
+              <span class="stat-label">正确率</span>
+            </div>
+            <div>
+              <span class="stat-value" id="englishStreak">0</span>
+              <span class="stat-label">连对</span>
+            </div>
+          </div>
+
+          <div class="progress-shell" aria-hidden="true">
+            <div class="progress-fill" id="englishProgress"></div>
+          </div>
+
+          <div class="word-card">
+            <p class="word-label" id="englishPromptLabel">请选择中文意思</p>
+            <div class="word" id="englishWord">apple</div>
+            <button class="speak-button" id="speakWord" type="button">听一听</button>
+          </div>
+
+          <p class="feedback" id="englishFeedback" data-tone="neutral">点击选项开始答题</p>
+          <div class="choice-grid" id="englishChoices" aria-label="英语选项"></div>
+
+          <div class="actions">
+            <button class="action primary" id="startEnglish" type="button">英语闯关</button>
+            <button class="action" id="toggleSoundEnglish" type="button" aria-pressed="true">声音开</button>
+            <button class="action quiet" id="resetEnglish" type="button">重置</button>
+          </div>
+
+          <div class="summary" id="englishSummary" hidden>
+            <p id="englishSummaryText"></p>
+          </div>
+        </section>
       </section>
     </main>
     <script type="module" src="./src/app.mjs"></script>
