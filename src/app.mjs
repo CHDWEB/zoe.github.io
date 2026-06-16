@@ -53,6 +53,12 @@ const sudokuState = {
   difficulty: "simple",
   noteMode: false,
   notes: createSudokuNotes(6),
+  elapsedStartedAt: null,
+  timerId: null,
+  countdownMinutes: 5,
+  countdownEndsAt: null,
+  countdownActive: false,
+  locked: false,
   selected: null,
 };
 
@@ -118,6 +124,10 @@ const els = {
   englishSummary: document.querySelector("#englishSummary"),
   englishSummaryText: document.querySelector("#englishSummaryText"),
   sudokuStatus: document.querySelector("#sudokuStatus"),
+  sudokuElapsed: document.querySelector("#sudokuElapsed"),
+  sudokuCountdown: document.querySelector("#sudokuCountdown"),
+  sudokuMinutes: document.querySelector("#sudokuMinutes"),
+  sudokuMinutesValue: document.querySelector("#sudokuMinutesValue"),
   sudokuRule: document.querySelector("#sudokuRule"),
   sudokuGrid: document.querySelector("#sudokuGrid"),
   sudokuFeedback: document.querySelector("#sudokuFeedback"),
@@ -130,6 +140,7 @@ const els = {
   sudokuPad: document.querySelector("#sudokuPad"),
   newSudoku: document.querySelector("#newSudoku"),
   resetSudoku: document.querySelector("#resetSudoku"),
+  startSudokuCountdown: document.querySelector("#startSudokuCountdown"),
 };
 
 const sound = createSoundController();
@@ -189,6 +200,13 @@ function currentEnglishLevel() {
 
 function createSudokuNotes(size) {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => []));
+}
+
+function formatClock(totalSeconds) {
+  const safeSeconds = Math.max(0, Math.floor(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
 function showScreen(screen) {
@@ -536,7 +554,72 @@ function renderEnglish() {
   renderEnglishLevels();
 }
 
+function updateSudokuMinutesLabel() {
+  els.sudokuMinutes.value = String(sudokuState.countdownMinutes);
+  els.sudokuMinutesValue.textContent = `${sudokuState.countdownMinutes} 分钟`;
+}
+
+function stopSudokuCountdown() {
+  sudokuState.countdownActive = false;
+  sudokuState.countdownEndsAt = null;
+  sudokuState.locked = false;
+}
+
+function startSudokuClock({ resetCountdown = false } = {}) {
+  sudokuState.elapsedStartedAt = Date.now();
+  sudokuState.locked = false;
+  sudokuState.selected = null;
+  if (resetCountdown) {
+    stopSudokuCountdown();
+  }
+  if (!sudokuState.timerId) {
+    sudokuState.timerId = window.setInterval(updateSudokuClock, 1000);
+  }
+  updateSudokuClock();
+}
+
+function lockSudokuAfterCountdown() {
+  sudokuState.countdownActive = false;
+  sudokuState.countdownEndsAt = null;
+  sudokuState.locked = true;
+  sudokuState.noteMode = false;
+  sudokuState.selected = null;
+  els.sudokuFeedback.textContent = "时间到，棋盘已锁定";
+  els.sudokuFeedback.dataset.tone = "try";
+  sound.play("wrong");
+}
+
+function updateSudokuClock() {
+  if (sudokuState.elapsedStartedAt !== null) {
+    els.sudokuElapsed.textContent = formatClock((Date.now() - sudokuState.elapsedStartedAt) / 1000);
+  }
+
+  if (sudokuState.countdownActive && sudokuState.countdownEndsAt !== null) {
+    const remainingSeconds = Math.ceil((sudokuState.countdownEndsAt - Date.now()) / 1000);
+    els.sudokuCountdown.textContent = formatClock(remainingSeconds);
+    if (remainingSeconds <= 0) {
+      els.sudokuCountdown.textContent = "00:00";
+      lockSudokuAfterCountdown();
+    }
+  } else if (!sudokuState.locked) {
+    els.sudokuCountdown.textContent = "--:--";
+  }
+
+  renderSudoku();
+}
+
+function startSudokuCountdown() {
+  sudokuState.countdownActive = true;
+  sudokuState.locked = false;
+  sudokuState.countdownEndsAt = Date.now() + sudokuState.countdownMinutes * 60 * 1000;
+  els.sudokuFeedback.textContent = "倒计时挑战开始";
+  els.sudokuFeedback.dataset.tone = "good";
+  sound.play("level");
+  updateSudokuClock();
+}
+
 function selectSudokuCell(row, col) {
+  if (sudokuState.locked) return;
   if (sudokuState.game.givens.has(cellKey(row, col))) return;
   sudokuState.selected = { row, col };
   sound.play("tap");
@@ -544,6 +627,7 @@ function selectSudokuCell(row, col) {
 }
 
 function setSudokuValue(value) {
+  if (sudokuState.locked) return;
   if (!sudokuState.selected) return;
   const { row, col } = sudokuState.selected;
   if (sudokuState.game.givens.has(cellKey(row, col))) return;
@@ -595,6 +679,7 @@ function setSudokuValue(value) {
 }
 
 function resetSudokuGame() {
+  if (sudokuState.locked) return;
   sudokuState.game.entries = sudokuState.game.puzzle.map((row) => [...row]);
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
@@ -616,6 +701,7 @@ function setSudokuDifficulty(difficulty) {
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
   if (!canUseSudokuNotes()) sudokuState.noteMode = false;
+  startSudokuClock({ resetCountdown: true });
   const labels = { simple: "简单题来了", normal: "普通题来了", challenge: "挑战题来了" };
   els.sudokuFeedback.textContent = labels[difficulty] || "新题来了";
   els.sudokuFeedback.dataset.tone = "neutral";
@@ -628,6 +714,7 @@ function setSudokuSize(size) {
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
   if (!canUseSudokuNotes()) sudokuState.noteMode = false;
+  startSudokuClock({ resetCountdown: true });
   els.sudokuFeedback.textContent = size === 9 ? "九宫格来了" : "六宫格来了";
   els.sudokuFeedback.dataset.tone = "neutral";
   renderSudoku();
@@ -637,6 +724,7 @@ function nextSudokuGame() {
   sudokuState.game = createCurrentSudokuGame();
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
+  startSudokuClock({ resetCountdown: true });
   els.sudokuFeedback.textContent = "新题来了";
   els.sudokuFeedback.dataset.tone = "good";
   sound.play("level");
@@ -687,6 +775,7 @@ function renderSudoku() {
       button.dataset.selected = String(sudokuState.selected?.row === row && sudokuState.selected?.col === col);
       button.dataset.boxRight = String((col + 1) % game.boxCols === 0 && col < game.size - 1);
       button.dataset.boxBottom = String((row + 1) % game.boxRows === 0 && row < game.size - 1);
+      button.disabled = sudokuState.locked;
       button.addEventListener("click", () => selectSudokuCell(row, col));
       els.sudokuGrid.append(button);
     }
@@ -699,6 +788,7 @@ function renderSudoku() {
     button.type = "button";
     button.className = "sudoku-key";
     button.textContent = String(value);
+    button.disabled = sudokuState.locked;
     button.addEventListener("click", () => setSudokuValue(value));
     els.sudokuPad.append(button);
   }
@@ -706,6 +796,7 @@ function renderSudoku() {
   clear.type = "button";
   clear.className = "sudoku-key sudoku-clear";
   clear.textContent = "清空格";
+  clear.disabled = sudokuState.locked;
   clear.addEventListener("click", () => setSudokuValue(0));
   els.sudokuPad.append(clear);
 
@@ -722,6 +813,11 @@ function renderSudoku() {
   els.sudokuNotes.hidden = !canUseSudokuNotes();
   els.sudokuNotes.dataset.active = String(sudokuState.noteMode && canUseSudokuNotes());
   els.sudokuNotes.setAttribute("aria-pressed", String(sudokuState.noteMode && canUseSudokuNotes()));
+  els.sudokuNotes.disabled = sudokuState.locked;
+  els.resetSudoku.disabled = sudokuState.locked;
+  els.sudokuMinutes.disabled = sudokuState.countdownActive || sudokuState.locked;
+  els.startSudokuCountdown.disabled = sudokuState.countdownActive || sudokuState.locked;
+  updateSudokuMinutesLabel();
 }
 
 function render() {
@@ -844,6 +940,11 @@ els.sudokuSimple.addEventListener("click", () => setSudokuDifficulty("simple"));
 els.sudokuNormal.addEventListener("click", () => setSudokuDifficulty("normal"));
 els.sudokuChallenge.addEventListener("click", () => setSudokuDifficulty("challenge"));
 els.sudokuNotes.addEventListener("click", () => toggleSudokuNotes());
+els.sudokuMinutes.addEventListener("input", () => {
+  sudokuState.countdownMinutes = Number(els.sudokuMinutes.value);
+  updateSudokuMinutesLabel();
+});
+els.startSudokuCountdown.addEventListener("click", () => startSudokuCountdown());
 
 window.addEventListener("keydown", (event) => {
   if (/^\d$/.test(event.key)) handleDigit(event.key);

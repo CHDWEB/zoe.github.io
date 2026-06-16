@@ -134,6 +134,16 @@
         <div class="sudoku-layout">
           <div class="sudoku-grid" id="sudokuGrid" aria-label="数独棋盘"></div>
           <div class="sudoku-side">
+            <div class="sudoku-timers" aria-label="数独计时">
+              <div>
+                <span class="timer-label">用时</span>
+                <strong id="sudokuElapsed">00:00</strong>
+              </div>
+              <div>
+                <span class="timer-label">倒计时</span>
+                <strong id="sudokuCountdown">--:--</strong>
+              </div>
+            </div>
             <p class="feedback" id="sudokuFeedback" data-tone="neutral">先点空格，再选择数字</p>
             <div class="difficulty-switch sudoku-size-switch" aria-label="数独宫格">
               <button class="difficulty-button" id="sudokuSize6" type="button" data-active="true">六宫格</button>
@@ -145,6 +155,11 @@
               <button class="difficulty-button" id="sudokuChallenge" type="button">挑战</button>
             </div>
             <button class="difficulty-button sudoku-note-toggle" id="sudokuNotes" type="button" aria-pressed="false" hidden>候选数</button>
+            <div class="sudoku-countdown-control" aria-label="倒计时挑战">
+              <label for="sudokuMinutes">倒计时挑战：<span id="sudokuMinutesValue">5 分钟</span></label>
+              <input id="sudokuMinutes" type="range" min="1" max="60" value="5">
+              <button class="action primary" id="startSudokuCountdown" type="button">开始</button>
+            </div>
             <div class="sudoku-pad" id="sudokuPad" aria-label="数独数字"></div>
             <div class="actions">
               <button class="action primary" id="newSudoku" type="button">换一题</button>

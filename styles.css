@@ -653,6 +653,51 @@ h2 {
   gap: 14px;
 }
 
+.sudoku-timers {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.sudoku-timers > div,
+.sudoku-countdown-control {
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.timer-label {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.sudoku-timers strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink);
+  font-size: 1.55rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sudoku-countdown-control {
+  display: grid;
+  gap: 10px;
+}
+
+.sudoku-countdown-control label {
+  color: var(--ink);
+  font-weight: 900;
+}
+
+.sudoku-countdown-control input[type="range"] {
+  width: 100%;
+  accent-color: var(--mint);
+}
+
 .difficulty-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
