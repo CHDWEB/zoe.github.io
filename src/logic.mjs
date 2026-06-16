@@ -1,42 +1,50 @@
 export const LEVELS = [
   {
-    id: "add-10",
-    title: "10以内加法",
-    description: "先把小数字加法练稳。",
+    id: "vertical-add-100",
+    title: "两位数加法竖式",
+    description: "个位对个位，十位对十位，不进位。",
     modes: ["add"],
-    maxAnswer: 10,
+    layout: "vertical",
     goalCorrect: 8,
   },
   {
-    id: "sub-10",
-    title: "10以内减法",
-    description: "练习不慌张地找差。",
+    id: "vertical-subtract-100",
+    title: "两位数减法竖式",
+    description: "个位够减，十位够减，不退位。",
     modes: ["subtract"],
-    maxAnswer: 10,
+    layout: "vertical",
     goalCorrect: 8,
   },
   {
-    id: "add-20",
-    title: "20以内加法",
-    description: "加入进位和更大的数。",
-    modes: ["add"],
-    maxAnswer: 20,
-    goalCorrect: 10,
-  },
-  {
-    id: "sub-20",
-    title: "20以内减法",
-    description: "练习退位减法。",
-    modes: ["subtract"],
-    maxAnswer: 20,
-    goalCorrect: 10,
-  },
-  {
-    id: "mixed-20",
-    title: "混合挑战",
-    description: "加减法一起出现。",
+    id: "vertical-mixed-100",
+    title: "竖式混合练习",
+    description: "加减法混合出现，先看清符号。",
     modes: ["add", "subtract"],
-    maxAnswer: 20,
+    layout: "vertical",
+    goalCorrect: 10,
+  },
+  {
+    id: "horizontal-add-100",
+    title: "横式加法",
+    description: "换成横式，继续练不进位加法。",
+    modes: ["add"],
+    layout: "horizontal",
+    goalCorrect: 10,
+  },
+  {
+    id: "horizontal-subtract-100",
+    title: "横式减法",
+    description: "横式练不退位减法。",
+    modes: ["subtract"],
+    layout: "horizontal",
+    goalCorrect: 12,
+  },
+  {
+    id: "horizontal-mixed-100",
+    title: "横式混合挑战",
+    description: "100以内两位数加减混合。",
+    modes: ["add", "subtract"],
+    layout: "horizontal",
     goalCorrect: 12,
   },
 ];
@@ -49,17 +57,24 @@ function pickInt(maxInclusive, random = Math.random) {
   return Math.floor(random() * (maxInclusive + 1));
 }
 
+function pickIntRange(minInclusive, maxInclusive, random = Math.random) {
+  return minInclusive + pickInt(maxInclusive - minInclusive, random);
+}
+
 function pickFrom(items, random = Math.random) {
   return items[Math.floor(random() * items.length)];
 }
 
-export function createQuestion(kind = "mixed", random = Math.random, options = {}) {
-  const maxAnswer = options.maxAnswer ?? 20;
+export function createQuestion(kind = "mixed", random = Math.random) {
   const mode = kind === "mixed" ? pickFrom(["add", "subtract"], random) : kind;
 
   if (mode === "subtract") {
-    const a = pickInt(maxAnswer, random);
-    const b = pickInt(a, random);
+    const aTens = pickIntRange(1, 9, random);
+    const aOnes = pickIntRange(0, 9, random);
+    const bTens = pickIntRange(1, aTens, random);
+    const bOnes = pickIntRange(0, aOnes, random);
+    const a = aTens * 10 + aOnes;
+    const b = bTens * 10 + bOnes;
     return {
       a,
       b,
@@ -68,19 +83,26 @@ export function createQuestion(kind = "mixed", random = Math.random, options = {
     };
   }
 
-  const answer = pickInt(maxAnswer, random);
-  const a = pickInt(answer, random);
+  const aTens = pickIntRange(1, 8, random);
+  const aOnes = pickIntRange(0, 9, random);
+  const bTens = pickIntRange(1, 9 - aTens, random);
+  const bOnes = pickIntRange(0, 9 - aOnes, random);
+  const a = aTens * 10 + aOnes;
+  const b = bTens * 10 + bOnes;
   return {
     a,
-    b: answer - a,
+    b,
     operator: "+",
-    answer,
+    answer: a + b,
   };
 }
 
 export function createQuestionForLevel(level, random = Math.random) {
   const mode = pickFrom(level.modes, random);
-  return createQuestion(mode, random, { maxAnswer: level.maxAnswer });
+  return {
+    ...createQuestion(mode, random),
+    layout: level.layout,
+  };
 }
 
 export function createSession({ mode = "practice", now = () => Date.now() } = {}) {

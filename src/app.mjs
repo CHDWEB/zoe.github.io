@@ -37,6 +37,8 @@ const els = {
   timer: document.querySelector("#timer"),
   levelTrack: document.querySelector("#levelTrack"),
   keypad: document.querySelector("#keypad"),
+  problemCard: document.querySelector("#problemCard"),
+  equals: document.querySelector("#equals"),
   startPractice: document.querySelector("#startPractice"),
   startChallenge: document.querySelector("#startChallenge"),
   nextLevel: document.querySelector("#nextLevel"),
@@ -214,11 +216,18 @@ function renderLevels() {
 
 function render() {
   const level = currentLevel();
-  els.levelTitle.textContent = level.title;
-  els.levelDescription.textContent = level.description;
-  els.problem.textContent = state.question
+  const expression = state.question
     ? `${state.question.a} ${state.question.operator} ${state.question.b}`
     : "准备开始";
+  els.levelTitle.textContent = level.title;
+  els.levelDescription.textContent = level.description;
+  els.problemCard.dataset.layout = state.question?.layout || level.layout || "horizontal";
+  els.problem.textContent = expression;
+  els.problem.setAttribute("aria-label", expression);
+  els.problem.innerHTML = state.question?.layout === "vertical"
+    ? renderVerticalProblem(state.question)
+    : expression;
+  els.equals.textContent = state.question?.layout === "vertical" ? "" : "=";
   els.answer.textContent = state.input || "?";
   els.timer.textContent = state.mode === "challenge"
     ? `${Math.max(0, Math.ceil((state.challengeEndsAt - Date.now()) / 1000))}s`
@@ -238,6 +247,19 @@ function render() {
   els.toggleSound.textContent = sound.isEnabled() ? "声音开" : "声音关";
   els.toggleSound.setAttribute("aria-pressed", String(sound.isEnabled()));
   renderLevels();
+}
+
+function renderVerticalProblem(question) {
+  const top = String(question.a).padStart(2, "0").split("");
+  const bottom = String(question.b).padStart(2, "0").split("");
+  return `
+    <div class="vertical-problem" aria-hidden="true">
+      <div class="place-labels"><span>十位</span><span>个位</span></div>
+      <div class="vertical-number"><span>${top[0]}</span><span>${top[1]}</span></div>
+      <div class="vertical-number vertical-second"><b>${question.operator}</b><span>${bottom[0]}</span><span>${bottom[1]}</span></div>
+      <div class="vertical-line"></div>
+    </div>
+  `;
 }
 
 function buildKeypad() {

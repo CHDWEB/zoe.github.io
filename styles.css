@@ -37,7 +37,7 @@ button {
   min-height: 100vh;
   padding: max(18px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(22px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
   display: grid;
-  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
+  grid-template-columns: 176px minmax(320px, 1fr);
   gap: 18px;
   align-items: stretch;
 }
@@ -45,7 +45,7 @@ button {
 .hero {
   min-height: 680px;
   border-radius: 8px;
-  padding: 28px;
+  padding: 18px;
   background: linear-gradient(160deg, #fff7db, #e3f8ff 62%, #dff5ef);
   box-shadow: var(--shadow);
   overflow: hidden;
@@ -55,14 +55,20 @@ button {
 }
 
 .hero-art {
-  min-height: 420px;
+  min-height: 230px;
   display: grid;
   place-items: center;
 }
 
 .hero-art img {
-  width: min(92%, 420px);
+  width: min(100%, 150px);
   filter: drop-shadow(0 18px 22px rgba(47, 125, 107, 0.18));
+}
+
+.hero-copy {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
 }
 
 .eyebrow,
@@ -81,8 +87,10 @@ p {
 
 h1 {
   margin-bottom: 6px;
-  font-size: clamp(2.6rem, 8vw, 5.2rem);
-  line-height: 0.98;
+  font-size: clamp(2.4rem, 4vw, 4.2rem);
+  line-height: 1.08;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
 }
 
 h2 {
@@ -204,6 +212,19 @@ h2 {
   padding: 20px;
 }
 
+.problem-card[data-layout="vertical"] {
+  grid-template-columns: 1fr 120px;
+  min-height: 250px;
+}
+
+.problem-card[data-layout="vertical"] .problem {
+  text-align: right;
+}
+
+.problem-card[data-layout="vertical"] .equals {
+  display: none;
+}
+
 .problem,
 .answer,
 .equals {
@@ -215,6 +236,50 @@ h2 {
 
 .answer {
   color: var(--coral);
+}
+
+.vertical-problem {
+  width: min(280px, 100%);
+  margin-left: auto;
+  display: grid;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.place-labels {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  padding-right: 4px;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.vertical-number {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+  align-items: center;
+  font-size: clamp(3.2rem, 8vw, 5.6rem);
+  line-height: 1;
+}
+
+.vertical-second {
+  position: relative;
+}
+
+.vertical-second b {
+  position: absolute;
+  left: -46px;
+  color: var(--mint);
+  font-size: 0.72em;
+}
+
+.vertical-line {
+  height: 5px;
+  border-radius: 999px;
+  background: #17352e;
 }
 
 .feedback {
@@ -329,11 +394,24 @@ h2 {
 
   h1 {
     font-size: 2.6rem;
+    writing-mode: horizontal-tb;
   }
 
   .problem-card {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .problem-card[data-layout="vertical"] {
+    grid-template-columns: 1fr;
+  }
+
+  .problem-card[data-layout="vertical"] .problem {
+    text-align: center;
+  }
+
+  .vertical-problem {
+    margin: 0 auto;
   }
 
   .problem,
