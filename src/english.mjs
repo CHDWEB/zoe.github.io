@@ -154,8 +154,6 @@ function createVerbQuestion(level, random) {
   const answer = subject.thirdPerson ? verb.third : verb.base;
   const prompt = `${subject.subject} ___ ${object}.`;
   const wrongVerb = subject.thirdPerson ? verb.base : verb.third;
-  const otherVerb = pick(Object.values(VERBS).filter((item) => item.base !== verb.base), random);
-  const otherOption = subject.thirdPerson ? otherVerb.third : otherVerb.base;
 
   return {
     mode: "sentence",
@@ -163,7 +161,7 @@ function createVerbQuestion(level, random) {
     fullSentence: `${subject.subject} ${answer} ${object}.`,
     speakText: `${subject.subject} ${answer} ${object}.`,
     answer,
-    options: shuffle([answer, wrongVerb, otherOption], random),
+    options: shuffle([answer, wrongVerb], random),
   };
 }
 
@@ -177,9 +175,6 @@ function createHelperQuestion(level, random) {
   const wrongSameMeaning = subject.thirdPerson
     ? (answer === "does" ? "do" : "don't")
     : (answer === "do" ? "does" : "doesn't");
-  const wrongOther = subject.thirdPerson
-    ? (answer === "does" ? "don't" : "do")
-    : (answer === "do" ? "doesn't" : "does");
 
   return {
     mode: "sentence",
@@ -187,7 +182,7 @@ function createHelperQuestion(level, random) {
     fullSentence: `${subject.subject} ${answer} ${VERBS[verbKey].base} ${object}.`,
     speakText: `${subject.subject} ${answer} ${VERBS[verbKey].base} ${object}.`,
     answer,
-    options: shuffle([answer, wrongSameMeaning, wrongOther], random),
+    options: shuffle([answer, wrongSameMeaning], random),
   };
 }
 

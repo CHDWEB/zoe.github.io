@@ -60,8 +60,8 @@
             <span class="mode-desc">100以内两位数不进位、不退位</span>
           </button>
           <button class="mode-card" id="openSudoku" type="button">
-            <span class="mode-title">1-6 数独</span>
-            <span class="mode-desc">观察、排除、填满每一格</span>
+            <span class="mode-title">数独挑战</span>
+            <span class="mode-desc">六宫格和九宫格，观察、排除、填满每一格</span>
           </button>
         </div>
       </section>
@@ -125,19 +125,24 @@
         <div class="topbar">
           <div>
             <button class="back-button" id="backFromSudoku" type="button">返回数学游戏</button>
-            <p class="label">1-6 数独</p>
+            <p class="label">数独挑战</p>
             <h2>填满每一行、每一列、每个小宫格</h2>
-            <p class="muted">每行、每列、每个 2x3 宫格都要出现 1 到 6。</p>
+            <p class="muted" id="sudokuRule">每行、每列、每个 2x3 宫格都要出现 1 到 6。</p>
           </div>
           <div class="timer" id="sudokuStatus">推理</div>
         </div>
         <div class="sudoku-layout">
-          <div class="sudoku-grid" id="sudokuGrid" aria-label="1到6数独棋盘"></div>
+          <div class="sudoku-grid" id="sudokuGrid" aria-label="数独棋盘"></div>
           <div class="sudoku-side">
             <p class="feedback" id="sudokuFeedback" data-tone="neutral">先点空格，再选择数字</p>
+            <div class="difficulty-switch sudoku-size-switch" aria-label="数独宫格">
+              <button class="difficulty-button" id="sudokuSize6" type="button" data-active="true">六宫格</button>
+              <button class="difficulty-button" id="sudokuSize9" type="button">九宫格</button>
+            </div>
             <div class="difficulty-switch" aria-label="数独难度">
               <button class="difficulty-button" id="sudokuSimple" type="button" data-active="true">简单</button>
               <button class="difficulty-button" id="sudokuNormal" type="button">普通</button>
+              <button class="difficulty-button" id="sudokuChallenge" type="button">挑战</button>
             </div>
             <div class="sudoku-pad" id="sudokuPad" aria-label="数独数字"></div>
             <div class="actions">

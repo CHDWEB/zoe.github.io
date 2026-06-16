@@ -14,12 +14,10 @@ import {
   createWordQuestion,
 } from "./english.mjs";
 import {
-  SIZE as SUDOKU_SIZE,
   cellKey,
   createSudokuGame,
   findConflicts,
   isSolved,
-  listSudokuPuzzles,
 } from "./sudoku.mjs";
 import { createSoundController } from "./sound.mjs";
 
@@ -50,13 +48,11 @@ const englishState = {
 };
 
 const sudokuState = {
-  game: createSudokuGame(0),
-  puzzleIndex: 0,
+  game: createSudokuGame({ size: 6, difficulty: "simple" }),
+  size: 6,
   difficulty: "simple",
   selected: null,
 };
-
-const sudokuPuzzles = listSudokuPuzzles();
 
 const els = {
   app: document.querySelector("#app"),
@@ -120,10 +116,14 @@ const els = {
   englishSummary: document.querySelector("#englishSummary"),
   englishSummaryText: document.querySelector("#englishSummaryText"),
   sudokuStatus: document.querySelector("#sudokuStatus"),
+  sudokuRule: document.querySelector("#sudokuRule"),
   sudokuGrid: document.querySelector("#sudokuGrid"),
   sudokuFeedback: document.querySelector("#sudokuFeedback"),
+  sudokuSize6: document.querySelector("#sudokuSize6"),
+  sudokuSize9: document.querySelector("#sudokuSize9"),
   sudokuSimple: document.querySelector("#sudokuSimple"),
   sudokuNormal: document.querySelector("#sudokuNormal"),
+  sudokuChallenge: document.querySelector("#sudokuChallenge"),
   sudokuPad: document.querySelector("#sudokuPad"),
   newSudoku: document.querySelector("#newSudoku"),
   resetSudoku: document.querySelector("#resetSudoku"),
@@ -515,6 +515,7 @@ function renderEnglish() {
   els.toggleSoundEnglish.setAttribute("aria-pressed", String(sound.isEnabled()));
 
   els.englishChoices.innerHTML = "";
+  els.englishChoices.dataset.count = String(englishState.question?.options?.length || 0);
   (englishState.question?.options || []).forEach((option) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -540,9 +541,9 @@ function setSudokuValue(value) {
   const { row, col } = sudokuState.selected;
   if (sudokuState.game.givens.has(cellKey(row, col))) return;
   sudokuState.game.entries[row][col] = value;
-  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens);
+  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens, sudokuState.game);
 
-  if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens)) {
+  if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens, sudokuState.game)) {
     els.sudokuFeedback.textContent = "数独完成啦";
     els.sudokuFeedback.dataset.tone = "good";
     sound.play("finish");
@@ -567,30 +568,34 @@ function resetSudokuGame() {
   renderSudoku();
 }
 
-function sudokuIndexForDifficulty(difficulty, offset = 0) {
-  const matches = sudokuPuzzles
-    .map((puzzle, index) => ({ puzzle, index }))
-    .filter((item) => item.puzzle.difficulty === difficulty);
-  return matches[offset % matches.length].index;
+function createCurrentSudokuGame() {
+  return createSudokuGame({
+    size: sudokuState.size,
+    difficulty: sudokuState.difficulty,
+  });
 }
 
 function setSudokuDifficulty(difficulty) {
   sudokuState.difficulty = difficulty;
-  sudokuState.puzzleIndex = sudokuIndexForDifficulty(difficulty);
-  sudokuState.game = createSudokuGame(sudokuState.puzzleIndex);
+  sudokuState.game = createCurrentSudokuGame();
   sudokuState.selected = null;
-  els.sudokuFeedback.textContent = difficulty === "simple" ? "简单题来了" : "普通题来了";
+  const labels = { simple: "简单题来了", normal: "普通题来了", challenge: "挑战题来了" };
+  els.sudokuFeedback.textContent = labels[difficulty] || "新题来了";
+  els.sudokuFeedback.dataset.tone = "neutral";
+  renderSudoku();
+}
+
+function setSudokuSize(size) {
+  sudokuState.size = size;
+  sudokuState.game = createCurrentSudokuGame();
+  sudokuState.selected = null;
+  els.sudokuFeedback.textContent = size === 9 ? "九宫格来了" : "六宫格来了";
   els.sudokuFeedback.dataset.tone = "neutral";
   renderSudoku();
 }
 
 function nextSudokuGame() {
-  const currentDifficultyPuzzles = sudokuPuzzles
-    .map((puzzle, index) => ({ puzzle, index }))
-    .filter((item) => item.puzzle.difficulty === sudokuState.difficulty);
-  const currentOffset = Math.max(0, currentDifficultyPuzzles.findIndex((item) => item.index === sudokuState.puzzleIndex));
-  sudokuState.puzzleIndex = currentDifficultyPuzzles[(currentOffset + 1) % currentDifficultyPuzzles.length].index;
-  sudokuState.game = createSudokuGame(sudokuState.puzzleIndex);
+  sudokuState.game = createCurrentSudokuGame();
   sudokuState.selected = null;
   els.sudokuFeedback.textContent = "新题来了";
   els.sudokuFeedback.dataset.tone = "good";
@@ -599,29 +604,36 @@ function nextSudokuGame() {
 }
 
 function renderSudoku() {
-  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens);
+  const { game } = sudokuState;
+  const conflicts = findConflicts(game.entries, game.givens, game);
   els.sudokuGrid.innerHTML = "";
+  els.sudokuGrid.style.gridTemplateColumns = `repeat(${game.size}, 1fr)`;
+  els.sudokuGrid.style.gridTemplateRows = `repeat(${game.size}, 1fr)`;
+  els.sudokuGrid.dataset.size = String(game.size);
 
-  for (let row = 0; row < SUDOKU_SIZE; row += 1) {
-    for (let col = 0; col < SUDOKU_SIZE; col += 1) {
+  for (let row = 0; row < game.size; row += 1) {
+    for (let col = 0; col < game.size; col += 1) {
       const button = document.createElement("button");
       const key = cellKey(row, col);
-      const value = sudokuState.game.entries[row][col];
+      const value = game.entries[row][col];
       button.type = "button";
       button.className = "sudoku-cell";
       button.textContent = value || "";
       button.dataset.row = String(row);
       button.dataset.col = String(col);
-      button.dataset.given = String(sudokuState.game.givens.has(key));
+      button.dataset.given = String(game.givens.has(key));
       button.dataset.conflict = String(conflicts.has(key));
       button.dataset.selected = String(sudokuState.selected?.row === row && sudokuState.selected?.col === col);
+      button.dataset.boxRight = String((col + 1) % game.boxCols === 0 && col < game.size - 1);
+      button.dataset.boxBottom = String((row + 1) % game.boxRows === 0 && row < game.size - 1);
       button.addEventListener("click", () => selectSudokuCell(row, col));
       els.sudokuGrid.append(button);
     }
   }
 
   els.sudokuPad.innerHTML = "";
-  for (let value = 1; value <= SUDOKU_SIZE; value += 1) {
+  els.sudokuPad.dataset.size = String(game.size);
+  for (let value = 1; value <= game.size; value += 1) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "sudoku-key";
@@ -637,8 +649,15 @@ function renderSudoku() {
   els.sudokuPad.append(clear);
 
   els.sudokuStatus.textContent = conflicts.size > 0 ? "检查" : "推理";
+  els.sudokuRule.textContent = game.size === 9
+    ? "每行、每列、每个 3x3 宫格都要出现 1 到 9。"
+    : "每行、每列、每个 2x3 宫格都要出现 1 到 6。";
+  els.sudokuGrid.setAttribute("aria-label", `1到${game.size}数独棋盘`);
+  els.sudokuSize6.dataset.active = String(sudokuState.size === 6);
+  els.sudokuSize9.dataset.active = String(sudokuState.size === 9);
   els.sudokuSimple.dataset.active = String(sudokuState.difficulty === "simple");
   els.sudokuNormal.dataset.active = String(sudokuState.difficulty === "normal");
+  els.sudokuChallenge.dataset.active = String(sudokuState.difficulty === "challenge");
 }
 
 function render() {
@@ -755,8 +774,11 @@ els.resetEnglish.addEventListener("click", () => {
 });
 els.newSudoku.addEventListener("click", () => nextSudokuGame());
 els.resetSudoku.addEventListener("click", () => resetSudokuGame());
+els.sudokuSize6.addEventListener("click", () => setSudokuSize(6));
+els.sudokuSize9.addEventListener("click", () => setSudokuSize(9));
 els.sudokuSimple.addEventListener("click", () => setSudokuDifficulty("simple"));
 els.sudokuNormal.addEventListener("click", () => setSudokuDifficulty("normal"));
+els.sudokuChallenge.addEventListener("click", () => setSudokuDifficulty("challenge"));
 
 window.addEventListener("keydown", (event) => {
   if (/^\d$/.test(event.key)) handleDigit(event.key);
