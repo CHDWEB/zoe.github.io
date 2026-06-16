@@ -51,6 +51,8 @@ const sudokuState = {
   game: createSudokuGame({ size: 6, difficulty: "simple" }),
   size: 6,
   difficulty: "simple",
+  noteMode: false,
+  notes: createSudokuNotes(6),
   selected: null,
 };
 
@@ -124,6 +126,7 @@ const els = {
   sudokuSimple: document.querySelector("#sudokuSimple"),
   sudokuNormal: document.querySelector("#sudokuNormal"),
   sudokuChallenge: document.querySelector("#sudokuChallenge"),
+  sudokuNotes: document.querySelector("#sudokuNotes"),
   sudokuPad: document.querySelector("#sudokuPad"),
   newSudoku: document.querySelector("#newSudoku"),
   resetSudoku: document.querySelector("#resetSudoku"),
@@ -182,6 +185,10 @@ function currentEnglishLevel() {
   return englishState.mode === "sentence"
     ? englishState.sentenceLevels[englishState.sentenceLevelIndex]
     : englishState.wordLevels[englishState.wordLevelIndex];
+}
+
+function createSudokuNotes(size) {
+  return Array.from({ length: size }, () => Array.from({ length: size }, () => []));
 }
 
 function showScreen(screen) {
@@ -540,7 +547,34 @@ function setSudokuValue(value) {
   if (!sudokuState.selected) return;
   const { row, col } = sudokuState.selected;
   if (sudokuState.game.givens.has(cellKey(row, col))) return;
+
+  if (sudokuState.noteMode && value > 0) {
+    const notes = sudokuState.notes[row][col];
+    if (sudokuState.game.entries[row][col]) {
+      els.sudokuFeedback.textContent = "已有正式数字，先清空再记录候选";
+      els.sudokuFeedback.dataset.tone = "try";
+      sound.play("wrong");
+    } else if (notes.includes(value)) {
+      sudokuState.notes[row][col] = notes.filter((note) => note !== value);
+      els.sudokuFeedback.textContent = "候选数已取消";
+      els.sudokuFeedback.dataset.tone = "neutral";
+      sound.play("tap");
+    } else if (notes.length >= 2) {
+      els.sudokuFeedback.textContent = "每个格子最多记录两个候选数";
+      els.sudokuFeedback.dataset.tone = "try";
+      sound.play("wrong");
+    } else {
+      sudokuState.notes[row][col] = [...notes, value].sort((left, right) => left - right);
+      els.sudokuFeedback.textContent = "候选数已记录";
+      els.sudokuFeedback.dataset.tone = "good";
+      sound.play("tap");
+    }
+    renderSudoku();
+    return;
+  }
+
   sudokuState.game.entries[row][col] = value;
+  sudokuState.notes[row][col] = [];
   const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens, sudokuState.game);
 
   if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens, sudokuState.game)) {
@@ -562,6 +596,7 @@ function setSudokuValue(value) {
 
 function resetSudokuGame() {
   sudokuState.game.entries = sudokuState.game.puzzle.map((row) => [...row]);
+  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
   els.sudokuFeedback.textContent = "先点空格，再选择数字";
   els.sudokuFeedback.dataset.tone = "neutral";
@@ -578,7 +613,9 @@ function createCurrentSudokuGame() {
 function setSudokuDifficulty(difficulty) {
   sudokuState.difficulty = difficulty;
   sudokuState.game = createCurrentSudokuGame();
+  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
+  if (!canUseSudokuNotes()) sudokuState.noteMode = false;
   const labels = { simple: "简单题来了", normal: "普通题来了", challenge: "挑战题来了" };
   els.sudokuFeedback.textContent = labels[difficulty] || "新题来了";
   els.sudokuFeedback.dataset.tone = "neutral";
@@ -588,7 +625,9 @@ function setSudokuDifficulty(difficulty) {
 function setSudokuSize(size) {
   sudokuState.size = size;
   sudokuState.game = createCurrentSudokuGame();
+  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
+  if (!canUseSudokuNotes()) sudokuState.noteMode = false;
   els.sudokuFeedback.textContent = size === 9 ? "九宫格来了" : "六宫格来了";
   els.sudokuFeedback.dataset.tone = "neutral";
   renderSudoku();
@@ -596,10 +635,24 @@ function setSudokuSize(size) {
 
 function nextSudokuGame() {
   sudokuState.game = createCurrentSudokuGame();
+  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
   els.sudokuFeedback.textContent = "新题来了";
   els.sudokuFeedback.dataset.tone = "good";
   sound.play("level");
+  renderSudoku();
+}
+
+function canUseSudokuNotes() {
+  return sudokuState.size === 9 && sudokuState.difficulty === "challenge";
+}
+
+function toggleSudokuNotes() {
+  if (!canUseSudokuNotes()) return;
+  sudokuState.noteMode = !sudokuState.noteMode;
+  els.sudokuFeedback.textContent = sudokuState.noteMode ? "候选数模式已开启" : "候选数模式已关闭";
+  els.sudokuFeedback.dataset.tone = "neutral";
+  sound.play("tap");
   renderSudoku();
 }
 
@@ -616,11 +669,19 @@ function renderSudoku() {
       const button = document.createElement("button");
       const key = cellKey(row, col);
       const value = game.entries[row][col];
+      const notes = sudokuState.notes[row]?.[col] || [];
       button.type = "button";
       button.className = "sudoku-cell";
-      button.textContent = value || "";
+      button.textContent = value ? String(value) : "";
+      if (!value && notes.length > 0) {
+        const noteText = document.createElement("span");
+        noteText.className = "sudoku-notes";
+        noteText.textContent = notes.join(" ");
+        button.append(noteText);
+      }
       button.dataset.row = String(row);
       button.dataset.col = String(col);
+      button.dataset.notes = value ? "" : notes.join(",");
       button.dataset.given = String(game.givens.has(key));
       button.dataset.conflict = String(conflicts.has(key));
       button.dataset.selected = String(sudokuState.selected?.row === row && sudokuState.selected?.col === col);
@@ -658,6 +719,9 @@ function renderSudoku() {
   els.sudokuSimple.dataset.active = String(sudokuState.difficulty === "simple");
   els.sudokuNormal.dataset.active = String(sudokuState.difficulty === "normal");
   els.sudokuChallenge.dataset.active = String(sudokuState.difficulty === "challenge");
+  els.sudokuNotes.hidden = !canUseSudokuNotes();
+  els.sudokuNotes.dataset.active = String(sudokuState.noteMode && canUseSudokuNotes());
+  els.sudokuNotes.setAttribute("aria-pressed", String(sudokuState.noteMode && canUseSudokuNotes()));
 }
 
 function render() {
@@ -779,6 +843,7 @@ els.sudokuSize9.addEventListener("click", () => setSudokuSize(9));
 els.sudokuSimple.addEventListener("click", () => setSudokuDifficulty("simple"));
 els.sudokuNormal.addEventListener("click", () => setSudokuDifficulty("normal"));
 els.sudokuChallenge.addEventListener("click", () => setSudokuDifficulty("challenge"));
+els.sudokuNotes.addEventListener("click", () => toggleSudokuNotes());
 
 window.addEventListener("keydown", (event) => {
   if (/^\d$/.test(event.key)) handleDigit(event.key);

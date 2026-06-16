@@ -602,6 +602,7 @@ h2 {
   font-size: clamp(1.25rem, 5vw, 3.4rem);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
+  position: relative;
 }
 
 .sudoku-grid[data-size="9"] .sudoku-cell {
@@ -635,6 +636,18 @@ h2 {
   color: #b75044;
 }
 
+.sudoku-notes {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #7a6650;
+  font-size: clamp(0.78rem, 2.5vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: 0;
+  pointer-events: none;
+}
+
 .sudoku-side {
   display: grid;
   gap: 14px;
@@ -663,6 +676,11 @@ h2 {
   border-color: var(--mint);
   background: var(--mint);
   color: #fff;
+}
+
+.sudoku-note-toggle {
+  width: 100%;
+  min-height: 52px;
 }
 
 .sudoku-pad {
