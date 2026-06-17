@@ -1,3 +1,5 @@
+import { SUDOKU_PUZZLES } from "./sudokuPuzzles.mjs";
+
 export const SIZE = 6;
 export const BOX_ROWS = 2;
 export const BOX_COLS = 3;
@@ -7,21 +9,11 @@ export const SUDOKU_SETTINGS = {
     size: 6,
     boxRows: 2,
     boxCols: 3,
-    givens: {
-      simple: { min: 24, max: 28 },
-      normal: { min: 18, max: 23 },
-      challenge: { min: 14, max: 17 },
-    },
   },
   9: {
     size: 9,
     boxRows: 3,
     boxCols: 3,
-    givens: {
-      simple: { min: 40, max: 45 },
-      normal: { min: 32, max: 39 },
-      challenge: { min: 26, max: 31 },
-    },
   },
 };
 
@@ -33,66 +25,42 @@ function key(row, col) {
   return `${row},${col}`;
 }
 
-function randomSeed() {
-  return Math.floor(Math.random() * 0x7fffffff) + 1;
-}
-
-function seededRandom(seed = randomSeed()) {
-  let value = seed % 0x7fffffff;
-  if (value <= 0) value += 0x7ffffffe;
-  return () => {
-    value = (value * 48271) % 0x7fffffff;
-    return value / 0x7fffffff;
-  };
-}
-
-function pickIndex(length, random = Math.random) {
-  return Math.floor(random() * length);
-}
-
-function shuffle(items, random = Math.random) {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = pickIndex(i + 1, random);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
-
 function resolveSettings(options = {}) {
   const size = typeof options === "number" ? 6 : Number(options.size || 6);
-  const settings = SUDOKU_SETTINGS[size] || SUDOKU_SETTINGS[6];
+  return SUDOKU_SETTINGS[size] || SUDOKU_SETTINGS[6];
+}
+
+function stringToGrid(value, size) {
+  return Array.from({ length: size }, (_, row) => (
+    value
+      .slice(row * size, row * size + size)
+      .split("")
+      .map(Number)
+  ));
+}
+
+function createPuzzleRecord(record, size) {
   return {
-    ...settings,
-    difficulty: typeof options === "number" ? "simple" : (options.difficulty || "simple"),
-    random: typeof options === "number" ? seededRandom(options + 1) : (options.random || Math.random),
+    level: record.level,
+    size,
+    boxRows: SUDOKU_SETTINGS[size].boxRows,
+    boxCols: SUDOKU_SETTINGS[size].boxCols,
+    difficulty: record.difficulty,
+    puzzle: stringToGrid(record.puzzle, size),
+    solution: stringToGrid(record.solution, size),
   };
+}
+
+function createGivens(puzzle) {
+  return new Set(puzzle.flatMap((row, rowIndex) => row.map((value, colIndex) => (
+    value === 0 ? null : key(rowIndex, colIndex)
+  ))).filter(Boolean));
 }
 
 function groupIsValid(values, settings) {
   return values.length === settings.size
     && new Set(values).size === settings.size
     && values.every((value) => value >= 1 && value <= settings.size);
-}
-
-function buildSolvedGrid(settings, random = Math.random) {
-  const { size, boxRows, boxCols } = settings;
-  const rows = shuffle([...Array(size).keys()], random);
-  const cols = shuffle([...Array(size).keys()], random);
-  const numbers = shuffle([...Array(size).keys()].map((index) => index + 1), random);
-
-  const rowBands = shuffle([...Array(size / boxRows).keys()], random)
-    .flatMap((band) => shuffle([...Array(boxRows).keys()], random).map((row) => band * boxRows + row));
-  const colBands = shuffle([...Array(size / boxCols).keys()], random)
-    .flatMap((band) => shuffle([...Array(boxCols).keys()], random).map((col) => band * boxCols + col));
-
-  const rowOrder = rowBands.length === size ? rowBands : rows;
-  const colOrder = colBands.length === size ? colBands : cols;
-
-  return rowOrder.map((row) => colOrder.map((col) => {
-    const pattern = (boxCols * (row % boxRows) + Math.floor(row / boxRows) + col) % size;
-    return numbers[pattern];
-  }));
 }
 
 function canPlace(grid, row, col, value, settings) {
@@ -150,66 +118,27 @@ function solveInternal(puzzle, settings, limit = 1) {
   return solutions;
 }
 
-function countSolutions(puzzle, settings) {
-  return solveInternal(puzzle, settings, 2).length;
-}
-
-function targetGivenCount(settings, random) {
-  const range = settings.givens[settings.difficulty] || settings.givens.simple;
-  return range.min + pickIndex(range.max - range.min + 1, random);
-}
-
-function removeCells(solution, settings, random) {
-  const puzzle = cloneGrid(solution);
-  const cells = shuffle([...Array(settings.size * settings.size).keys()], random);
-  const target = targetGivenCount(settings, random);
-  let givens = settings.size * settings.size;
-
-  for (const cell of cells) {
-    if (givens <= target) break;
-    const row = Math.floor(cell / settings.size);
-    const col = cell % settings.size;
-    const previous = puzzle[row][col];
-    puzzle[row][col] = 0;
-
-    if (countSolutions(puzzle, settings) === 1) {
-      givens -= 1;
-    } else {
-      puzzle[row][col] = previous;
-    }
+function findPuzzleRecord(size, level, difficulty) {
+  const puzzles = SUDOKU_PUZZLES[size] || SUDOKU_PUZZLES[6];
+  if (Number.isInteger(level)) {
+    return puzzles[Math.min(Math.max(level, 1), puzzles.length) - 1];
   }
-
-  return puzzle;
-}
-
-function createGivens(puzzle) {
-  return new Set(puzzle.flatMap((row, rowIndex) => row.map((value, colIndex) => (
-    value === 0 ? null : key(rowIndex, colIndex)
-  ))).filter(Boolean));
+  if (difficulty) {
+    return puzzles.find((puzzle) => puzzle.difficulty === difficulty) || puzzles[0];
+  }
+  return puzzles[0];
 }
 
 export function createSudokuGame(options = {}) {
-  const settings = resolveSettings(options);
-  let puzzle = null;
-  let solution = null;
-
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    solution = buildSolvedGrid(settings, settings.random);
-    puzzle = removeCells(solution, settings, settings.random);
-    const givens = puzzle.flat().filter(Boolean).length;
-    const range = settings.givens[settings.difficulty] || settings.givens.simple;
-    if (givens >= range.min && givens <= range.max && countSolutions(puzzle, settings) === 1) break;
-  }
+  const size = typeof options === "number" ? 6 : Number(options.size || 6);
+  const record = findPuzzleRecord(size, options.level, options.difficulty);
+  const puzzle = createPuzzleRecord(record, SUDOKU_SETTINGS[size] ? size : 6);
 
   return {
-    size: settings.size,
-    boxRows: settings.boxRows,
-    boxCols: settings.boxCols,
-    difficulty: settings.difficulty,
-    puzzle,
-    solution,
-    entries: cloneGrid(puzzle),
-    givens: createGivens(puzzle),
+    ...puzzle,
+    maxLevel: (SUDOKU_PUZZLES[puzzle.size] || []).length,
+    entries: cloneGrid(puzzle.puzzle),
+    givens: createGivens(puzzle.puzzle),
   };
 }
 
@@ -218,8 +147,9 @@ export function solveSudoku(puzzle, options = {}) {
   return solveInternal(puzzle, settings, 1)[0] || null;
 }
 
-export function listSudokuPuzzles() {
-  return [];
+export function listSudokuPuzzles(size = 6) {
+  const safeSize = SUDOKU_SETTINGS[size] ? Number(size) : 6;
+  return (SUDOKU_PUZZLES[safeSize] || []).map((record) => createPuzzleRecord(record, safeSize));
 }
 
 export function isValidSolution(grid, options = {}) {

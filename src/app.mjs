@@ -18,6 +18,7 @@ import {
   createSudokuGame,
   findConflicts,
   isSolved,
+  listSudokuPuzzles,
 } from "./sudoku.mjs";
 import { createSoundController } from "./sound.mjs";
 
@@ -48,9 +49,11 @@ const englishState = {
 };
 
 const sudokuState = {
-  game: createSudokuGame({ size: 6, difficulty: "simple" }),
+  game: createSudokuGame({ size: 6, level: 1 }),
   size: 6,
+  level: 1,
   difficulty: "simple",
+  view: "size",
   noteMode: false,
   notes: createSudokuNotes(6),
   elapsedStartedAt: null,
@@ -69,7 +72,6 @@ const els = {
   englishGame: document.querySelector("#englishGame"),
   openMath: document.querySelector("#openMath"),
   openEnglish: document.querySelector("#openEnglish"),
-  backFromMath: document.querySelector("#backFromMath"),
   backFromMathMenu: document.querySelector("#backFromMathMenu"),
   mathModeMenu: document.querySelector("#mathModeMenu"),
   openArithmetic: document.querySelector("#openArithmetic"),
@@ -128,14 +130,17 @@ const els = {
   sudokuCountdown: document.querySelector("#sudokuCountdown"),
   sudokuMinutes: document.querySelector("#sudokuMinutes"),
   sudokuMinutesValue: document.querySelector("#sudokuMinutesValue"),
+  sudokuTitle: document.querySelector("#sudokuTitle"),
   sudokuRule: document.querySelector("#sudokuRule"),
+  sudokuPicker: document.querySelector("#sudokuPicker"),
+  sudokuLevelSection: document.querySelector("#sudokuLevelSection"),
+  sudokuLevelGrid: document.querySelector("#sudokuLevelGrid"),
+  sudokuPlay: document.querySelector("#sudokuPlay"),
   sudokuGrid: document.querySelector("#sudokuGrid"),
   sudokuFeedback: document.querySelector("#sudokuFeedback"),
   sudokuSize6: document.querySelector("#sudokuSize6"),
   sudokuSize9: document.querySelector("#sudokuSize9"),
-  sudokuSimple: document.querySelector("#sudokuSimple"),
-  sudokuNormal: document.querySelector("#sudokuNormal"),
-  sudokuChallenge: document.querySelector("#sudokuChallenge"),
+  sudokuCurrentLevel: document.querySelector("#sudokuCurrentLevel"),
   sudokuNotes: document.querySelector("#sudokuNotes"),
   sudokuPad: document.querySelector("#sudokuPad"),
   newSudoku: document.querySelector("#newSudoku"),
@@ -284,7 +289,7 @@ function startMath(mode = "practice") {
 function openSudokuGame() {
   showScreen("math");
   showSudoku();
-  setSudokuDifficulty(sudokuState.difficulty);
+  showSudokuSizePicker();
 }
 
 function newQuestion() {
@@ -565,6 +570,18 @@ function stopSudokuCountdown() {
   sudokuState.locked = false;
 }
 
+function stopSudokuClock() {
+  if (sudokuState.elapsedStartedAt !== null) {
+    els.sudokuElapsed.textContent = formatClock((Date.now() - sudokuState.elapsedStartedAt) / 1000);
+  }
+  if (sudokuState.timerId) {
+    window.clearInterval(sudokuState.timerId);
+    sudokuState.timerId = null;
+  }
+  sudokuState.countdownActive = false;
+  sudokuState.countdownEndsAt = null;
+}
+
 function startSudokuClock({ resetCountdown = false } = {}) {
   sudokuState.elapsedStartedAt = Date.now();
   sudokuState.locked = false;
@@ -662,6 +679,7 @@ function setSudokuValue(value) {
   const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens, sudokuState.game);
 
   if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens, sudokuState.game)) {
+    stopSudokuClock();
     els.sudokuFeedback.textContent = "数独完成啦";
     els.sudokuFeedback.dataset.tone = "good";
     sound.play("finish");
@@ -691,46 +709,96 @@ function resetSudokuGame() {
 function createCurrentSudokuGame() {
   return createSudokuGame({
     size: sudokuState.size,
-    difficulty: sudokuState.difficulty,
+    level: sudokuState.level,
   });
 }
 
-function setSudokuDifficulty(difficulty) {
-  sudokuState.difficulty = difficulty;
+function sudokuDifficultyLabel(difficulty) {
+  return {
+    simple: "简单",
+    normal: "普通",
+    challenge: "挑战",
+  }[difficulty] || "关卡";
+}
+
+function showSudokuSizePicker() {
+  stopSudokuClock();
+  sudokuState.view = "size";
+  sudokuState.selected = null;
+  sudokuState.locked = false;
+  els.sudokuPicker.hidden = false;
+  els.sudokuLevelSection.hidden = true;
+  els.sudokuPlay.hidden = true;
+  els.backFromSudoku.textContent = "返回数学游戏";
+  els.sudokuTitle.textContent = "选择宫格";
+  els.sudokuRule.textContent = "先选择六宫格或九宫格，再选择要练习的关卡。";
+  els.sudokuStatus.textContent = "选择";
+  els.sudokuSize6.dataset.active = String(sudokuState.size === 6);
+  els.sudokuSize9.dataset.active = String(sudokuState.size === 9);
+}
+
+function showSudokuLevelPicker(size = sudokuState.size) {
+  stopSudokuClock();
+  sudokuState.size = size;
+  sudokuState.view = "levels";
+  sudokuState.selected = null;
+  sudokuState.locked = false;
+  els.sudokuPicker.hidden = false;
+  els.sudokuLevelSection.hidden = false;
+  els.sudokuPlay.hidden = true;
+  els.backFromSudoku.textContent = "返回宫格选择";
+  els.sudokuTitle.textContent = `${size === 9 ? "九宫格" : "六宫格"}关卡`;
+  els.sudokuRule.textContent = "请选择一个关卡，全部关卡都可以直接练习。";
+  els.sudokuStatus.textContent = `${size === 9 ? 81 : 36}关`;
+  els.sudokuSize6.dataset.active = String(size === 6);
+  els.sudokuSize9.dataset.active = String(size === 9);
+  renderSudokuLevels();
+}
+
+function renderSudokuLevels() {
+  const puzzles = listSudokuPuzzles(sudokuState.size);
+  els.sudokuLevelGrid.innerHTML = "";
+  els.sudokuLevelGrid.dataset.size = String(sudokuState.size);
+
+  puzzles.forEach((puzzle) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "sudoku-level-button";
+    button.textContent = String(puzzle.level);
+    button.dataset.difficulty = puzzle.difficulty;
+    button.dataset.active = String(sudokuState.level === puzzle.level && sudokuState.size === puzzle.size);
+    button.ariaLabel = `${sudokuDifficultyLabel(puzzle.difficulty)}第 ${puzzle.level} 关`;
+    button.addEventListener("click", () => startSudokuLevel(puzzle.size, puzzle.level));
+    els.sudokuLevelGrid.append(button);
+  });
+}
+
+function startSudokuLevel(size, level) {
+  sudokuState.size = size;
+  sudokuState.level = level;
   sudokuState.game = createCurrentSudokuGame();
+  sudokuState.difficulty = sudokuState.game.difficulty;
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
+  sudokuState.view = "play";
   if (!canUseSudokuNotes()) sudokuState.noteMode = false;
+  els.sudokuPicker.hidden = true;
+  els.sudokuPlay.hidden = false;
+  els.backFromSudoku.textContent = "返回关卡选择";
   startSudokuClock({ resetCountdown: true });
-  const labels = { simple: "简单题来了", normal: "普通题来了", challenge: "挑战题来了" };
-  els.sudokuFeedback.textContent = labels[difficulty] || "新题来了";
+  els.sudokuFeedback.textContent = `第 ${level} 关开始`;
   els.sudokuFeedback.dataset.tone = "neutral";
   renderSudoku();
 }
 
 function setSudokuSize(size) {
-  sudokuState.size = size;
-  sudokuState.game = createCurrentSudokuGame();
-  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
-  sudokuState.selected = null;
-  if (!canUseSudokuNotes()) sudokuState.noteMode = false;
-  startSudokuClock({ resetCountdown: true });
-  els.sudokuFeedback.textContent = size === 9 ? "九宫格来了" : "六宫格来了";
-  els.sudokuFeedback.dataset.tone = "neutral";
-  renderSudoku();
+  showSudokuLevelPicker(size);
 }
 
 function nextSudokuGame() {
-  sudokuState.game = createCurrentSudokuGame();
-  sudokuState.notes = createSudokuNotes(sudokuState.game.size);
-  sudokuState.selected = null;
-  startSudokuClock({ resetCountdown: true });
-  els.sudokuFeedback.textContent = "新题来了";
-  els.sudokuFeedback.dataset.tone = "good";
+  showSudokuLevelPicker(sudokuState.size);
   sound.play("level");
-  renderSudoku();
 }
-
 function canUseSudokuNotes() {
   return sudokuState.size === 9 && sudokuState.difficulty === "challenge";
 }
@@ -804,12 +872,9 @@ function renderSudoku() {
   els.sudokuRule.textContent = game.size === 9
     ? "每行、每列、每个 3x3 宫格都要出现 1 到 9。"
     : "每行、每列、每个 2x3 宫格都要出现 1 到 6。";
+  els.sudokuTitle.textContent = `${game.size === 9 ? "九宫格" : "六宫格"}第 ${game.level} 关`;
+  els.sudokuCurrentLevel.textContent = `${sudokuDifficultyLabel(game.difficulty)} · 第 ${game.level} / ${game.maxLevel} 关`;
   els.sudokuGrid.setAttribute("aria-label", `1到${game.size}数独棋盘`);
-  els.sudokuSize6.dataset.active = String(sudokuState.size === 6);
-  els.sudokuSize9.dataset.active = String(sudokuState.size === 9);
-  els.sudokuSimple.dataset.active = String(sudokuState.difficulty === "simple");
-  els.sudokuNormal.dataset.active = String(sudokuState.difficulty === "normal");
-  els.sudokuChallenge.dataset.active = String(sudokuState.difficulty === "challenge");
   els.sudokuNotes.hidden = !canUseSudokuNotes();
   els.sudokuNotes.dataset.active = String(sudokuState.noteMode && canUseSudokuNotes());
   els.sudokuNotes.setAttribute("aria-pressed", String(sudokuState.noteMode && canUseSudokuNotes()));
@@ -887,13 +952,25 @@ function buildKeypad() {
   });
 }
 
+function handleSudokuBack() {
+  if (sudokuState.view === "play") {
+    showSudokuLevelPicker(sudokuState.size);
+    return;
+  }
+  if (sudokuState.view === "levels") {
+    showSudokuSizePicker();
+    return;
+  }
+  showMathMenu();
+}
+
 els.openMath.addEventListener("click", () => showMathMenu());
 els.openEnglish.addEventListener("click", () => showEnglishMenu());
 els.backFromMathMenu.addEventListener("click", () => showLobby());
 els.openArithmetic.addEventListener("click", () => startMath("practice"));
 els.openSudoku.addEventListener("click", () => openSudokuGame());
 els.backFromArithmetic.addEventListener("click", () => showMathMenu());
-els.backFromSudoku.addEventListener("click", () => showMathMenu());
+els.backFromSudoku.addEventListener("click", () => handleSudokuBack());
 els.backFromEnglishMenu.addEventListener("click", () => showLobby());
 els.openWordGame.addEventListener("click", () => startEnglish("word"));
 els.openSentenceGame.addEventListener("click", () => startEnglish("sentence"));
@@ -936,9 +1013,6 @@ els.newSudoku.addEventListener("click", () => nextSudokuGame());
 els.resetSudoku.addEventListener("click", () => resetSudokuGame());
 els.sudokuSize6.addEventListener("click", () => setSudokuSize(6));
 els.sudokuSize9.addEventListener("click", () => setSudokuSize(9));
-els.sudokuSimple.addEventListener("click", () => setSudokuDifficulty("simple"));
-els.sudokuNormal.addEventListener("click", () => setSudokuDifficulty("normal"));
-els.sudokuChallenge.addEventListener("click", () => setSudokuDifficulty("challenge"));
 els.sudokuNotes.addEventListener("click", () => toggleSudokuNotes());
 els.sudokuMinutes.addEventListener("input", () => {
   sudokuState.countdownMinutes = Number(els.sudokuMinutes.value);
