@@ -826,6 +826,14 @@ h2 {
   min-height: 52px;
 }
 
+.sudoku-hint-button {
+  width: 100%;
+  min-height: 52px;
+  border-color: #d7a922;
+  background: #fff8d8;
+  color: #7a5b00;
+}
+
 .sudoku-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

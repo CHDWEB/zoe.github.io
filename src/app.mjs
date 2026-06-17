@@ -53,6 +53,7 @@ const sudokuState = {
   size: 6,
   level: 1,
   difficulty: "simple",
+  hintsRemaining: 1,
   view: "size",
   noteMode: false,
   notes: createSudokuNotes(6),
@@ -141,6 +142,7 @@ const els = {
   sudokuSize6: document.querySelector("#sudokuSize6"),
   sudokuSize9: document.querySelector("#sudokuSize9"),
   sudokuCurrentLevel: document.querySelector("#sudokuCurrentLevel"),
+  sudokuHint: document.querySelector("#sudokuHint"),
   sudokuNotes: document.querySelector("#sudokuNotes"),
   sudokuPad: document.querySelector("#sudokuPad"),
   newSudoku: document.querySelector("#newSudoku"),
@@ -676,23 +678,45 @@ function setSudokuValue(value) {
 
   sudokuState.game.entries[row][col] = value;
   sudokuState.notes[row][col] = [];
-  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens, sudokuState.game);
+  checkSudokuAfterFill();
 
-  if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens, sudokuState.game)) {
-    stopSudokuClock();
-    els.sudokuFeedback.textContent = "数独完成啦";
-    els.sudokuFeedback.dataset.tone = "good";
-    sound.play("finish");
-  } else if (conflicts.size > 0) {
-    els.sudokuFeedback.textContent = "有重复数字，换个格子试试";
+  renderSudoku();
+}
+
+function useSudokuHint() {
+  if (sudokuState.locked) return;
+  if (sudokuState.hintsRemaining <= 0) {
+    els.sudokuFeedback.textContent = "没有提示次数了";
     els.sudokuFeedback.dataset.tone = "try";
     sound.play("wrong");
-  } else {
-    els.sudokuFeedback.textContent = "继续推理";
-    els.sudokuFeedback.dataset.tone = "good";
-    sound.play("correct");
+    renderSudoku();
+    return;
+  }
+  if (!sudokuState.selected) {
+    els.sudokuFeedback.textContent = "先选中一个空格，再点提示";
+    els.sudokuFeedback.dataset.tone = "try";
+    sound.play("wrong");
+    renderSudoku();
+    return;
   }
 
+  const { row, col } = sudokuState.selected;
+  if (sudokuState.game.givens.has(cellKey(row, col))) return;
+  if (sudokuState.game.entries[row][col]) {
+    els.sudokuFeedback.textContent = "这个格子已经有数字了";
+    els.sudokuFeedback.dataset.tone = "try";
+    sound.play("wrong");
+    renderSudoku();
+    return;
+  }
+
+  sudokuState.game.entries[row][col] = sudokuState.game.solution[row][col];
+  sudokuState.notes[row][col] = [];
+  sudokuState.hintsRemaining -= 1;
+  els.sudokuFeedback.textContent = "提示已填入";
+  els.sudokuFeedback.dataset.tone = "good";
+  sound.play("correct");
+  checkSudokuAfterFill();
   renderSudoku();
 }
 
@@ -700,6 +724,7 @@ function resetSudokuGame() {
   if (sudokuState.locked) return;
   sudokuState.game.entries = sudokuState.game.puzzle.map((row) => [...row]);
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
+  sudokuState.hintsRemaining = sudokuHintQuota(sudokuState.game.difficulty);
   sudokuState.selected = null;
   els.sudokuFeedback.textContent = "先点空格，再选择数字";
   els.sudokuFeedback.dataset.tone = "neutral";
@@ -719,6 +744,33 @@ function sudokuDifficultyLabel(difficulty) {
     normal: "普通",
     challenge: "挑战",
   }[difficulty] || "关卡";
+}
+
+function sudokuHintQuota(difficulty) {
+  return {
+    simple: 1,
+    normal: 3,
+    challenge: 5,
+  }[difficulty] || 1;
+}
+
+function checkSudokuAfterFill() {
+  const conflicts = findConflicts(sudokuState.game.entries, sudokuState.game.givens, sudokuState.game);
+
+  if (isSolved(sudokuState.game.entries, sudokuState.game.solution, sudokuState.game.givens, sudokuState.game)) {
+    stopSudokuClock();
+    els.sudokuFeedback.textContent = "数独完成啦";
+    els.sudokuFeedback.dataset.tone = "good";
+    sound.play("finish");
+  } else if (conflicts.size > 0) {
+    els.sudokuFeedback.textContent = "有重复数字，换个格子试试";
+    els.sudokuFeedback.dataset.tone = "try";
+    sound.play("wrong");
+  } else {
+    els.sudokuFeedback.textContent = "继续推理";
+    els.sudokuFeedback.dataset.tone = "good";
+    sound.play("correct");
+  }
 }
 
 function showSudokuSizePicker() {
@@ -778,6 +830,7 @@ function startSudokuLevel(size, level) {
   sudokuState.level = level;
   sudokuState.game = createCurrentSudokuGame();
   sudokuState.difficulty = sudokuState.game.difficulty;
+  sudokuState.hintsRemaining = sudokuHintQuota(sudokuState.game.difficulty);
   sudokuState.notes = createSudokuNotes(sudokuState.game.size);
   sudokuState.selected = null;
   sudokuState.view = "play";
@@ -879,6 +932,8 @@ function renderSudoku() {
   els.sudokuNotes.dataset.active = String(sudokuState.noteMode && canUseSudokuNotes());
   els.sudokuNotes.setAttribute("aria-pressed", String(sudokuState.noteMode && canUseSudokuNotes()));
   els.sudokuNotes.disabled = sudokuState.locked;
+  els.sudokuHint.textContent = `提示 ${sudokuState.hintsRemaining}`;
+  els.sudokuHint.disabled = sudokuState.locked;
   els.resetSudoku.disabled = sudokuState.locked;
   els.sudokuMinutes.disabled = sudokuState.countdownActive || sudokuState.locked;
   els.startSudokuCountdown.disabled = sudokuState.countdownActive || sudokuState.locked;
@@ -1014,6 +1069,7 @@ els.resetSudoku.addEventListener("click", () => resetSudokuGame());
 els.sudokuSize6.addEventListener("click", () => setSudokuSize(6));
 els.sudokuSize9.addEventListener("click", () => setSudokuSize(9));
 els.sudokuNotes.addEventListener("click", () => toggleSudokuNotes());
+els.sudokuHint.addEventListener("click", () => useSudokuHint());
 els.sudokuMinutes.addEventListener("input", () => {
   sudokuState.countdownMinutes = Number(els.sudokuMinutes.value);
   updateSudokuMinutesLabel();
