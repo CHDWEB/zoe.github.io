@@ -26,10 +26,10 @@
             <span class="game-name">英语游戏</span>
             <span class="game-desc">看英文，选中文意思</span>
           </button>
-          <button class="game-card chinese-card" id="openChinese" type="button" disabled>
+          <button class="game-card chinese-card" id="openChinese" type="button">
             <span class="game-icon">语文</span>
             <span class="game-name">语文游戏</span>
-            <span class="game-desc">敬请期待</span>
+            <span class="game-desc">认字、组词、读句子</span>
           </button>
         </div>
       </section>
@@ -264,6 +264,98 @@
 
           <div class="summary" id="englishSummary" hidden>
             <p id="englishSummaryText"></p>
+          </div>
+        </section>
+      </section>
+
+      <section id="chineseGame" class="shell game-screen" aria-label="语文游戏" hidden>
+        <section class="hero chinese-hero" aria-label="语文游戏区域">
+          <div class="hero-art chinese-art" aria-hidden="true">
+            <div class="hanzi-stack"><span>字</span><span>词</span><span>句</span></div>
+          </div>
+          <div class="hero-copy">
+            <p class="eyebrow">Chinese Words</p>
+            <h1>语文字词句闯关</h1>
+          </div>
+        </section>
+
+        <section class="game-board chinese-mode-board" id="chineseModeMenu" aria-label="语文模式选择">
+          <div class="topbar">
+            <div>
+              <button class="back-button" id="backFromChineseMenu" type="button">返回首页</button>
+              <p class="label">语文游戏</p>
+              <h2>选择一个语文挑战</h2>
+              <p class="muted">从认字开始，再练组词和句子。</p>
+            </div>
+          </div>
+          <div class="mode-grid">
+            <button class="mode-card" id="openCharacterGame" type="button">
+              <span class="mode-title">认字</span>
+              <span class="mode-desc">看生字，选择正确读音</span>
+            </button>
+            <button class="mode-card" id="openChineseWordGame" type="button">
+              <span class="mode-title">组词</span>
+              <span class="mode-desc">上下两排字卡，连成词语</span>
+            </button>
+            <button class="mode-card" id="openChineseSentenceGame" type="button">
+              <span class="mode-title">句子</span>
+              <span class="mode-desc">选择合适词语，让句子通顺</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="game-board chinese-board" id="chinesePractice" aria-label="语文答题面板" hidden>
+          <div class="topbar">
+            <div>
+              <button class="back-button" id="backFromChinesePractice" type="button">返回语文游戏</button>
+              <p class="label">当前关卡</p>
+              <h2 id="chineseLevelTitle">准备开始</h2>
+              <p id="chineseLevelDescription" class="muted">看题目，选择正确答案。</p>
+            </div>
+            <div class="timer" id="chineseMode">练习</div>
+          </div>
+
+          <div class="level-track" id="chineseLevelTrack" aria-label="语文关卡进度"></div>
+
+          <div class="stats" aria-label="语文成绩">
+            <div>
+              <span class="stat-value" id="chineseScore">0/8</span>
+              <span class="stat-label">答对</span>
+            </div>
+            <div>
+              <span class="stat-value" id="chineseAccuracy">0%</span>
+              <span class="stat-label">正确率</span>
+            </div>
+            <div>
+              <span class="stat-value" id="chineseStreak">0</span>
+              <span class="stat-label">连对</span>
+            </div>
+          </div>
+
+          <div class="progress-shell" aria-hidden="true">
+            <div class="progress-fill" id="chineseProgress"></div>
+          </div>
+
+          <div class="word-card chinese-word-card">
+            <p class="word-label" id="chinesePromptLabel">请选择正确答案</p>
+            <div class="word chinese-word" id="chineseWord">字</div>
+          </div>
+
+          <p class="feedback" id="chineseFeedback" data-tone="neutral">点击选项开始答题</p>
+          <div class="choice-grid" id="chineseChoices" aria-label="语文选项"></div>
+          <div class="chinese-match-board" id="chineseMatchBoard" aria-label="语文组词配对" hidden>
+            <div class="match-row" id="chineseTopCards" aria-label="上排生字"></div>
+            <div class="match-lines" aria-hidden="true"></div>
+            <div class="match-row" id="chineseBottomCards" aria-label="下排生字"></div>
+          </div>
+
+          <div class="actions">
+            <button class="action primary" id="startChinese" type="button">语文闯关</button>
+            <button class="action quiet" id="resetChinese" type="button">重置</button>
+          </div>
+
+          <div class="summary" id="chineseSummary" hidden>
+            <p id="chineseSummaryText"></p>
           </div>
         </section>
       </section>

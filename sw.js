@@ -1,4 +1,4 @@
-const CACHE_NAME = "math-speed-kids-v15";
+const CACHE_NAME = "math-speed-kids-v17";
 const ASSETS = [
   "./",
   "./index.html",
@@ -6,6 +6,7 @@ const ASSETS = [
   "./src/app.mjs",
   "./src/logic.mjs",
   "./src/english.mjs",
+  "./src/chinese.mjs",
   "./src/sudoku.mjs",
   "./src/sound.mjs",
   "./assets/rocket.svg",

@@ -14,6 +14,12 @@ import {
   createWordQuestion,
 } from "./english.mjs";
 import {
+  createCharacterPlan,
+  createChineseQuestion,
+  createSentencePlan as createChineseSentencePlan,
+  createWordPlan as createChineseWordPlan,
+} from "./chinese.mjs";
+import {
   cellKey,
   createSudokuGame,
   findConflicts,
@@ -24,6 +30,7 @@ import { createSoundController } from "./sound.mjs";
 
 const STORAGE_KEY = "math-speed-kids-progress-v1";
 const ENGLISH_STORAGE_KEY = "english-speed-kids-progress-v1";
+const CHINESE_STORAGE_KEY = "chinese-speed-kids-progress-v1";
 const CHALLENGE_SECONDS = 60;
 
 const state = {
@@ -46,6 +53,20 @@ const englishState = {
   usedWords: new Set(),
   session: null,
   question: null,
+};
+
+const chineseState = {
+  characterLevels: createCharacterPlan(),
+  wordLevels: createChineseWordPlan(),
+  sentenceLevels: createChineseSentencePlan(),
+  mode: "character",
+  characterLevelIndex: 0,
+  wordLevelIndex: 0,
+  sentenceLevelIndex: 0,
+  session: null,
+  question: null,
+  selectedMatchTop: null,
+  matchedWords: new Set(),
 };
 
 const sudokuState = {
@@ -71,8 +92,10 @@ const els = {
   lobby: document.querySelector("#lobby"),
   mathGame: document.querySelector("#mathGame"),
   englishGame: document.querySelector("#englishGame"),
+  chineseGame: document.querySelector("#chineseGame"),
   openMath: document.querySelector("#openMath"),
   openEnglish: document.querySelector("#openEnglish"),
+  openChinese: document.querySelector("#openChinese"),
   backFromMathMenu: document.querySelector("#backFromMathMenu"),
   mathModeMenu: document.querySelector("#mathModeMenu"),
   openArithmetic: document.querySelector("#openArithmetic"),
@@ -87,6 +110,13 @@ const els = {
   openSentenceGame: document.querySelector("#openSentenceGame"),
   englishPractice: document.querySelector("#englishPractice"),
   backFromEnglishPractice: document.querySelector("#backFromEnglishPractice"),
+  backFromChineseMenu: document.querySelector("#backFromChineseMenu"),
+  chineseModeMenu: document.querySelector("#chineseModeMenu"),
+  openCharacterGame: document.querySelector("#openCharacterGame"),
+  openChineseWordGame: document.querySelector("#openChineseWordGame"),
+  openChineseSentenceGame: document.querySelector("#openChineseSentenceGame"),
+  chinesePractice: document.querySelector("#chinesePractice"),
+  backFromChinesePractice: document.querySelector("#backFromChinesePractice"),
   levelTitle: document.querySelector("#levelTitle"),
   levelDescription: document.querySelector("#levelDescription"),
   problem: document.querySelector("#problem"),
@@ -126,6 +156,25 @@ const els = {
   resetEnglish: document.querySelector("#resetEnglish"),
   englishSummary: document.querySelector("#englishSummary"),
   englishSummaryText: document.querySelector("#englishSummaryText"),
+  chineseLevelTitle: document.querySelector("#chineseLevelTitle"),
+  chineseLevelDescription: document.querySelector("#chineseLevelDescription"),
+  chineseMode: document.querySelector("#chineseMode"),
+  chineseLevelTrack: document.querySelector("#chineseLevelTrack"),
+  chineseScore: document.querySelector("#chineseScore"),
+  chineseAccuracy: document.querySelector("#chineseAccuracy"),
+  chineseStreak: document.querySelector("#chineseStreak"),
+  chineseProgress: document.querySelector("#chineseProgress"),
+  chinesePromptLabel: document.querySelector("#chinesePromptLabel"),
+  chineseWord: document.querySelector("#chineseWord"),
+  chineseFeedback: document.querySelector("#chineseFeedback"),
+  chineseChoices: document.querySelector("#chineseChoices"),
+  chineseMatchBoard: document.querySelector("#chineseMatchBoard"),
+  chineseTopCards: document.querySelector("#chineseTopCards"),
+  chineseBottomCards: document.querySelector("#chineseBottomCards"),
+  startChinese: document.querySelector("#startChinese"),
+  resetChinese: document.querySelector("#resetChinese"),
+  chineseSummary: document.querySelector("#chineseSummary"),
+  chineseSummaryText: document.querySelector("#chineseSummaryText"),
   sudokuStatus: document.querySelector("#sudokuStatus"),
   sudokuElapsed: document.querySelector("#sudokuElapsed"),
   sudokuCountdown: document.querySelector("#sudokuCountdown"),
@@ -180,6 +229,25 @@ function loadEnglishProgress() {
   }
 }
 
+function loadChineseProgress() {
+  try {
+    const progress = JSON.parse(localStorage.getItem(CHINESE_STORAGE_KEY) || "{}");
+    if (Number.isInteger(progress.characterLevelIndex)) {
+      chineseState.characterLevelIndex = Math.min(progress.characterLevelIndex, chineseState.characterLevels.length - 1);
+    }
+    if (Number.isInteger(progress.wordLevelIndex)) {
+      chineseState.wordLevelIndex = Math.min(progress.wordLevelIndex, chineseState.wordLevels.length - 1);
+    }
+    if (Number.isInteger(progress.sentenceLevelIndex)) {
+      chineseState.sentenceLevelIndex = Math.min(progress.sentenceLevelIndex, chineseState.sentenceLevels.length - 1);
+    }
+  } catch {
+    chineseState.characterLevelIndex = 0;
+    chineseState.wordLevelIndex = 0;
+    chineseState.sentenceLevelIndex = 0;
+  }
+}
+
 function saveProgress() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify({
     currentLevelIndex: state.currentLevelIndex,
@@ -195,6 +263,15 @@ function saveEnglishProgress() {
   }));
 }
 
+function saveChineseProgress() {
+  localStorage.setItem(CHINESE_STORAGE_KEY, JSON.stringify({
+    characterLevelIndex: chineseState.characterLevelIndex,
+    wordLevelIndex: chineseState.wordLevelIndex,
+    sentenceLevelIndex: chineseState.sentenceLevelIndex,
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
 function currentLevel() {
   return state.levels[state.currentLevelIndex];
 }
@@ -203,6 +280,12 @@ function currentEnglishLevel() {
   return englishState.mode === "sentence"
     ? englishState.sentenceLevels[englishState.sentenceLevelIndex]
     : englishState.wordLevels[englishState.wordLevelIndex];
+}
+
+function currentChineseLevel() {
+  if (chineseState.mode === "word") return chineseState.wordLevels[chineseState.wordLevelIndex];
+  if (chineseState.mode === "sentence") return chineseState.sentenceLevels[chineseState.sentenceLevelIndex];
+  return chineseState.characterLevels[chineseState.characterLevelIndex];
 }
 
 function createSudokuNotes(size) {
@@ -220,6 +303,7 @@ function showScreen(screen) {
   els.lobby.hidden = screen !== "lobby";
   els.mathGame.hidden = screen !== "math";
   els.englishGame.hidden = screen !== "english";
+  els.chineseGame.hidden = screen !== "chinese";
 }
 
 function showLobby() {
@@ -259,6 +343,18 @@ function showEnglishPractice() {
   showScreen("english");
   els.englishModeMenu.hidden = true;
   els.englishPractice.hidden = false;
+}
+
+function showChineseMenu() {
+  showScreen("chinese");
+  els.chineseModeMenu.hidden = false;
+  els.chinesePractice.hidden = true;
+}
+
+function showChinesePractice() {
+  showScreen("chinese");
+  els.chineseModeMenu.hidden = true;
+  els.chinesePractice.hidden = false;
 }
 
 function setMode(mode) {
@@ -559,6 +655,252 @@ function renderEnglish() {
   });
 
   renderEnglishLevels();
+}
+
+function startChinese(mode = "character") {
+  chineseState.mode = mode;
+  showChinesePractice();
+  chineseState.session = createSession({ mode: "chinese" });
+  els.chineseSummary.hidden = true;
+  newChineseQuestion();
+  renderChinese();
+}
+
+function newChineseQuestion() {
+  chineseState.question = createChineseQuestion(currentChineseLevel());
+  chineseState.selectedMatchTop = null;
+  chineseState.matchedWords = new Set();
+  startQuestion(chineseState.session);
+}
+
+function answerChinese(choice) {
+  if (!chineseState.session || !chineseState.question) return;
+  if (chineseState.question.mode === "word-match") return;
+  const correct = answerQuestion(chineseState.session, chineseState.question, choice);
+
+  if (correct) {
+    els.chineseFeedback.textContent = chineseState.session.streak > 0 && chineseState.session.streak % 5 === 0
+      ? "连对奖励"
+      : "答对啦";
+    els.chineseFeedback.dataset.tone = "good";
+    sound.play(chineseState.session.streak > 0 && chineseState.session.streak % 5 === 0 ? "streak" : "correct");
+  } else {
+    els.chineseFeedback.textContent = `正确答案是 ${chineseState.question.answer}`;
+    els.chineseFeedback.dataset.tone = "try";
+    sound.play("wrong");
+  }
+
+  if (chineseState.session.correct >= currentChineseLevel().goalCorrect) {
+    els.chineseFeedback.textContent = "本关完成，准备下一关";
+    els.chineseFeedback.dataset.tone = "good";
+    renderChinese();
+    window.setTimeout(advanceChineseLevel, 700);
+    return;
+  }
+
+  window.setTimeout(() => {
+    newChineseQuestion();
+    renderChinese();
+  }, correct ? 450 : 850);
+  renderChinese();
+}
+
+function answerChineseMatchTop(top, word) {
+  if (!chineseState.session || chineseState.question?.mode !== "word-match") return;
+  if (chineseState.matchedWords.has(word)) return;
+  chineseState.selectedMatchTop = { top, word };
+  els.chineseFeedback.textContent = `已选择“${top}”，再选下面一个字`;
+  els.chineseFeedback.dataset.tone = "neutral";
+  sound.play("tap");
+  renderChinese();
+}
+
+function answerChineseMatchBottom(bottom, word) {
+  if (!chineseState.session || chineseState.question?.mode !== "word-match") return;
+  if (chineseState.matchedWords.has(word)) return;
+  if (!chineseState.selectedMatchTop) {
+    els.chineseFeedback.textContent = "先选择上面一排的字";
+    els.chineseFeedback.dataset.tone = "try";
+    sound.play("wrong");
+    renderChinese();
+    return;
+  }
+
+  const selected = chineseState.selectedMatchTop;
+  const correct = selected.word === word;
+  answerQuestion(chineseState.session, { answer: selected.word }, correct ? selected.word : `${selected.top}${bottom}`);
+
+  if (correct) {
+    chineseState.matchedWords.add(word);
+    chineseState.selectedMatchTop = null;
+    els.chineseFeedback.textContent = `连成词语：${word}`;
+    els.chineseFeedback.dataset.tone = "good";
+    sound.play("correct");
+  } else {
+    chineseState.selectedMatchTop = null;
+    els.chineseFeedback.textContent = "这两个字不能组成这一组词，再试试";
+    els.chineseFeedback.dataset.tone = "try";
+    sound.play("wrong");
+  }
+
+  if (chineseState.session.correct >= currentChineseLevel().goalCorrect) {
+    els.chineseFeedback.textContent = "本关完成，准备下一关";
+    els.chineseFeedback.dataset.tone = "good";
+    renderChinese();
+    window.setTimeout(advanceChineseLevel, 700);
+    return;
+  }
+
+  if (correct && chineseState.matchedWords.size >= chineseState.question.pairs.length) {
+    window.setTimeout(() => {
+      newChineseQuestion();
+      renderChinese();
+    }, 550);
+  }
+  renderChinese();
+}
+
+function advanceChineseLevel() {
+  const levels = chineseLevelsForMode();
+  const currentIndex = chineseIndexForMode();
+  if (currentIndex >= levels.length - 1) {
+    const summary = getSessionSummary(chineseState.session);
+    sound.play("finish");
+    els.chineseSummary.hidden = false;
+    els.chineseSummaryText.textContent = `全部关卡完成：答对 ${summary.correct}/${summary.total}，正确率 ${summary.accuracy}% 。`;
+    renderChinese();
+    return;
+  }
+
+  setChineseIndexForMode(currentIndex + 1);
+  saveChineseProgress();
+  startChinese(chineseState.mode);
+  els.chineseFeedback.textContent = "进入下一关";
+  els.chineseFeedback.dataset.tone = "good";
+  sound.play("level");
+}
+
+function chineseLevelsForMode() {
+  if (chineseState.mode === "word") return chineseState.wordLevels;
+  if (chineseState.mode === "sentence") return chineseState.sentenceLevels;
+  return chineseState.characterLevels;
+}
+
+function chineseIndexForMode() {
+  if (chineseState.mode === "word") return chineseState.wordLevelIndex;
+  if (chineseState.mode === "sentence") return chineseState.sentenceLevelIndex;
+  return chineseState.characterLevelIndex;
+}
+
+function setChineseIndexForMode(index) {
+  if (chineseState.mode === "word") {
+    chineseState.wordLevelIndex = index;
+  } else if (chineseState.mode === "sentence") {
+    chineseState.sentenceLevelIndex = index;
+  } else {
+    chineseState.characterLevelIndex = index;
+  }
+}
+
+function renderChineseLevels() {
+  els.chineseLevelTrack.innerHTML = "";
+  const levels = chineseLevelsForMode();
+  const currentIndex = chineseIndexForMode();
+  levels.forEach((level, index) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "level-dot";
+    item.textContent = index + 1;
+    item.ariaLabel = level.title;
+    item.disabled = index > currentIndex;
+    item.dataset.active = String(index === currentIndex);
+    item.addEventListener("click", () => {
+      setChineseIndexForMode(index);
+      saveChineseProgress();
+      startChinese(chineseState.mode);
+    });
+    els.chineseLevelTrack.append(item);
+  });
+}
+
+function renderChinese() {
+  const level = currentChineseLevel();
+  const question = chineseState.question;
+  const summary = chineseState.session ? getSessionSummary(chineseState.session) : {
+    total: 0,
+    correct: 0,
+    accuracy: 0,
+    bestStreak: 0,
+  };
+
+  els.chineseLevelTitle.textContent = level.title;
+  els.chineseLevelDescription.textContent = level.description;
+  els.chineseMode.textContent = "练习";
+  els.chinesePromptLabel.textContent = chineseState.mode === "character"
+    ? "请选择正确读音"
+    : chineseState.mode === "word"
+      ? "请选择可以组成的词语"
+      : "请选择合适的词语";
+  els.chineseWord.textContent = question?.prompt || "准备开始";
+  els.chineseScore.textContent = `${summary.correct}/${Math.max(summary.total, level.goalCorrect)}`;
+  els.chineseAccuracy.textContent = `${summary.accuracy}%`;
+  els.chineseStreak.textContent = `${chineseState.session?.streak ?? 0}`;
+  els.chineseProgress.style.width = `${Math.min(100, (summary.correct / level.goalCorrect) * 100)}%`;
+
+  els.chineseChoices.innerHTML = "";
+  els.chineseTopCards.innerHTML = "";
+  els.chineseBottomCards.innerHTML = "";
+  els.chineseChoices.hidden = question?.mode === "word-match";
+  els.chineseMatchBoard.hidden = question?.mode !== "word-match";
+
+  if (question?.mode === "word-match") {
+    renderChineseMatch(question);
+    renderChineseLevels();
+    return;
+  }
+
+  els.chineseChoices.dataset.count = String(question?.options?.length || 0);
+  (question?.options || []).forEach((option) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "choice-button";
+    button.textContent = option;
+    button.dataset.choice = option;
+    button.addEventListener("click", () => answerChinese(option));
+    els.chineseChoices.append(button);
+  });
+
+  renderChineseLevels();
+}
+
+function renderChineseMatch(question) {
+  els.chineseChoices.dataset.count = "0";
+  question.topOptions.forEach((option) => {
+    const pair = question.pairs.find((item) => item.word === option.word);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "match-card";
+    button.textContent = option.char;
+    button.dataset.word = pair.word;
+    button.dataset.matched = String(chineseState.matchedWords.has(pair.word));
+    button.dataset.selected = String(chineseState.selectedMatchTop?.word === pair.word);
+    button.disabled = chineseState.matchedWords.has(pair.word);
+    button.addEventListener("click", () => answerChineseMatchTop(option.char, pair.word));
+    els.chineseTopCards.append(button);
+  });
+
+  question.bottomOptions.forEach((option) => {
+    const pair = question.pairs.find((item) => item.word === option.word);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "match-card";
+    button.textContent = option.char;
+    button.dataset.word = pair.word;
+    button.dataset.matched = String(chineseState.matchedWords.has(pair.word));
+    button.disabled = chineseState.matchedWords.has(pair.word);
+    button.addEventListener("click", () => answerChineseMatchBottom(option.char, pair.word));
+    els.chineseBottomCards.append(button);
+  });
 }
 
 function updateSudokuMinutesLabel() {
@@ -1021,15 +1363,21 @@ function handleSudokuBack() {
 
 els.openMath.addEventListener("click", () => showMathMenu());
 els.openEnglish.addEventListener("click", () => showEnglishMenu());
+els.openChinese.addEventListener("click", () => showChineseMenu());
 els.backFromMathMenu.addEventListener("click", () => showLobby());
 els.openArithmetic.addEventListener("click", () => startMath("practice"));
 els.openSudoku.addEventListener("click", () => openSudokuGame());
 els.backFromArithmetic.addEventListener("click", () => showMathMenu());
 els.backFromSudoku.addEventListener("click", () => handleSudokuBack());
 els.backFromEnglishMenu.addEventListener("click", () => showLobby());
+els.backFromChineseMenu.addEventListener("click", () => showLobby());
 els.openWordGame.addEventListener("click", () => startEnglish("word"));
 els.openSentenceGame.addEventListener("click", () => startEnglish("sentence"));
 els.backFromEnglishPractice.addEventListener("click", () => showEnglishMenu());
+els.openCharacterGame.addEventListener("click", () => startChinese("character"));
+els.openChineseWordGame.addEventListener("click", () => startChinese("word"));
+els.openChineseSentenceGame.addEventListener("click", () => startChinese("sentence"));
+els.backFromChinesePractice.addEventListener("click", () => showChineseMenu());
 els.startPractice.addEventListener("click", () => setMode("practice"));
 els.startChallenge.addEventListener("click", () => setMode("challenge"));
 els.nextLevel.addEventListener("click", () => {
@@ -1064,6 +1412,18 @@ els.resetEnglish.addEventListener("click", () => {
   saveEnglishProgress();
   startEnglish(englishState.mode);
 });
+els.startChinese.addEventListener("click", () => startChinese(chineseState.mode));
+els.resetChinese.addEventListener("click", () => {
+  if (chineseState.mode === "word") {
+    chineseState.wordLevelIndex = 0;
+  } else if (chineseState.mode === "sentence") {
+    chineseState.sentenceLevelIndex = 0;
+  } else {
+    chineseState.characterLevelIndex = 0;
+  }
+  saveChineseProgress();
+  startChinese(chineseState.mode);
+});
 els.newSudoku.addEventListener("click", () => nextSudokuGame());
 els.resetSudoku.addEventListener("click", () => resetSudokuGame());
 els.sudokuSize6.addEventListener("click", () => setSudokuSize(6));
@@ -1090,5 +1450,6 @@ if ("serviceWorker" in navigator) {
 
 loadProgress();
 loadEnglishProgress();
+loadChineseProgress();
 buildKeypad();
 showLobby();
