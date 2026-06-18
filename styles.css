@@ -267,6 +267,16 @@ h2 {
   gap: 8px;
 }
 
+#chineseLevelTrack {
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: 48px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+
 .level-dot {
   min-height: 44px;
   border: 2px solid var(--line);

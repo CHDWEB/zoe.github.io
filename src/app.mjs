@@ -65,6 +65,7 @@ const chineseState = {
   sentenceLevelIndex: 0,
   session: null,
   question: null,
+  usedQuestionKeys: new Set(),
   selectedMatchTop: null,
   matchedWords: new Set(),
 };
@@ -659,6 +660,7 @@ function renderEnglish() {
 
 function startChinese(mode = "character") {
   chineseState.mode = mode;
+  chineseState.usedQuestionKeys = new Set();
   showChinesePractice();
   chineseState.session = createSession({ mode: "chinese" });
   els.chineseSummary.hidden = true;
@@ -667,7 +669,11 @@ function startChinese(mode = "character") {
 }
 
 function newChineseQuestion() {
-  chineseState.question = createChineseQuestion(currentChineseLevel());
+  chineseState.question = createChineseQuestion(currentChineseLevel(), Math.random, chineseState.usedQuestionKeys);
+  if (chineseState.question.questionKey) {
+    chineseState.usedQuestionKeys.add(chineseState.question.questionKey);
+  }
+  (chineseState.question.questionKeys || []).forEach((key) => chineseState.usedQuestionKeys.add(key));
   chineseState.selectedMatchTop = null;
   chineseState.matchedWords = new Set();
   startQuestion(chineseState.session);
@@ -812,7 +818,7 @@ function renderChineseLevels() {
     item.className = "level-dot";
     item.textContent = index + 1;
     item.ariaLabel = level.title;
-    item.disabled = index > currentIndex;
+    item.disabled = false;
     item.dataset.active = String(index === currentIndex);
     item.addEventListener("click", () => {
       setChineseIndexForMode(index);
