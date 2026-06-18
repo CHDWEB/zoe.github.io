@@ -16,6 +16,7 @@ import {
 import {
   createCharacterPlan,
   createChineseQuestion,
+  createRadicalPlan,
   createSentencePlan as createChineseSentencePlan,
   createWordPlan as createChineseWordPlan,
 } from "./chinese.mjs";
@@ -59,10 +60,12 @@ const chineseState = {
   characterLevels: createCharacterPlan(),
   wordLevels: createChineseWordPlan(),
   sentenceLevels: createChineseSentencePlan(),
+  radicalLevels: createRadicalPlan(),
   mode: "character",
   characterLevelIndex: 0,
   wordLevelIndex: 0,
   sentenceLevelIndex: 0,
+  radicalLevelIndex: 0,
   session: null,
   question: null,
   usedQuestionKeys: new Set(),
@@ -116,6 +119,7 @@ const els = {
   openCharacterGame: document.querySelector("#openCharacterGame"),
   openChineseWordGame: document.querySelector("#openChineseWordGame"),
   openChineseSentenceGame: document.querySelector("#openChineseSentenceGame"),
+  openRadicalGame: document.querySelector("#openRadicalGame"),
   chinesePractice: document.querySelector("#chinesePractice"),
   backFromChinesePractice: document.querySelector("#backFromChinesePractice"),
   levelTitle: document.querySelector("#levelTitle"),
@@ -242,10 +246,14 @@ function loadChineseProgress() {
     if (Number.isInteger(progress.sentenceLevelIndex)) {
       chineseState.sentenceLevelIndex = Math.min(progress.sentenceLevelIndex, chineseState.sentenceLevels.length - 1);
     }
+    if (Number.isInteger(progress.radicalLevelIndex)) {
+      chineseState.radicalLevelIndex = Math.min(progress.radicalLevelIndex, chineseState.radicalLevels.length - 1);
+    }
   } catch {
     chineseState.characterLevelIndex = 0;
     chineseState.wordLevelIndex = 0;
     chineseState.sentenceLevelIndex = 0;
+    chineseState.radicalLevelIndex = 0;
   }
 }
 
@@ -269,6 +277,7 @@ function saveChineseProgress() {
     characterLevelIndex: chineseState.characterLevelIndex,
     wordLevelIndex: chineseState.wordLevelIndex,
     sentenceLevelIndex: chineseState.sentenceLevelIndex,
+    radicalLevelIndex: chineseState.radicalLevelIndex,
     updatedAt: new Date().toISOString(),
   }));
 }
@@ -284,6 +293,7 @@ function currentEnglishLevel() {
 }
 
 function currentChineseLevel() {
+  if (chineseState.mode === "radical") return chineseState.radicalLevels[chineseState.radicalLevelIndex];
   if (chineseState.mode === "word") return chineseState.wordLevels[chineseState.wordLevelIndex];
   if (chineseState.mode === "sentence") return chineseState.sentenceLevels[chineseState.sentenceLevelIndex];
   return chineseState.characterLevels[chineseState.characterLevelIndex];
@@ -681,7 +691,7 @@ function newChineseQuestion() {
 
 function answerChinese(choice) {
   if (!chineseState.session || !chineseState.question) return;
-  if (chineseState.question.mode === "word-match") return;
+  if (isChineseMatchQuestion(chineseState.question)) return;
   const correct = answerQuestion(chineseState.session, chineseState.question, choice);
 
   if (correct) {
@@ -712,7 +722,7 @@ function answerChinese(choice) {
 }
 
 function answerChineseMatchTop(top, word) {
-  if (!chineseState.session || chineseState.question?.mode !== "word-match") return;
+  if (!chineseState.session || !isChineseMatchQuestion(chineseState.question)) return;
   if (chineseState.matchedWords.has(word)) return;
   chineseState.selectedMatchTop = { top, word };
   els.chineseFeedback.textContent = `已选择“${top}”，再选下面一个字`;
@@ -722,7 +732,7 @@ function answerChineseMatchTop(top, word) {
 }
 
 function answerChineseMatchBottom(bottom, word) {
-  if (!chineseState.session || chineseState.question?.mode !== "word-match") return;
+  if (!chineseState.session || !isChineseMatchQuestion(chineseState.question)) return;
   if (chineseState.matchedWords.has(word)) return;
   if (!chineseState.selectedMatchTop) {
     els.chineseFeedback.textContent = "先选择上面一排的字";
@@ -739,7 +749,9 @@ function answerChineseMatchBottom(bottom, word) {
   if (correct) {
     chineseState.matchedWords.add(word);
     chineseState.selectedMatchTop = null;
-    els.chineseFeedback.textContent = `连成词语：${word}`;
+    els.chineseFeedback.textContent = chineseState.question.mode === "radical-match"
+      ? "偏旁和例字配对成功"
+      : `连成词语：${word}`;
     els.chineseFeedback.dataset.tone = "good";
     sound.play("correct");
   } else {
@@ -766,6 +778,10 @@ function answerChineseMatchBottom(bottom, word) {
   renderChinese();
 }
 
+function isChineseMatchQuestion(question) {
+  return question?.mode === "word-match" || question?.mode === "radical-match";
+}
+
 function advanceChineseLevel() {
   const levels = chineseLevelsForMode();
   const currentIndex = chineseIndexForMode();
@@ -787,19 +803,23 @@ function advanceChineseLevel() {
 }
 
 function chineseLevelsForMode() {
+  if (chineseState.mode === "radical") return chineseState.radicalLevels;
   if (chineseState.mode === "word") return chineseState.wordLevels;
   if (chineseState.mode === "sentence") return chineseState.sentenceLevels;
   return chineseState.characterLevels;
 }
 
 function chineseIndexForMode() {
+  if (chineseState.mode === "radical") return chineseState.radicalLevelIndex;
   if (chineseState.mode === "word") return chineseState.wordLevelIndex;
   if (chineseState.mode === "sentence") return chineseState.sentenceLevelIndex;
   return chineseState.characterLevelIndex;
 }
 
 function setChineseIndexForMode(index) {
-  if (chineseState.mode === "word") {
+  if (chineseState.mode === "radical") {
+    chineseState.radicalLevelIndex = index;
+  } else if (chineseState.mode === "word") {
     chineseState.wordLevelIndex = index;
   } else if (chineseState.mode === "sentence") {
     chineseState.sentenceLevelIndex = index;
@@ -846,8 +866,11 @@ function renderChinese() {
     ? "请选择正确读音"
     : chineseState.mode === "word"
       ? "请选择可以组成的词语"
-      : "请选择合适的词语";
+      : chineseState.mode === "radical"
+        ? (question?.mode === "radical-match" ? "偏旁和例字配一配" : "请选择正确例字")
+        : "请选择合适的词语";
   els.chineseWord.textContent = question?.prompt || "准备开始";
+  els.chineseWord.dataset.mode = question?.mode || "";
   els.chineseScore.textContent = `${summary.correct}/${Math.max(summary.total, level.goalCorrect)}`;
   els.chineseAccuracy.textContent = `${summary.accuracy}%`;
   els.chineseStreak.textContent = `${chineseState.session?.streak ?? 0}`;
@@ -856,10 +879,11 @@ function renderChinese() {
   els.chineseChoices.innerHTML = "";
   els.chineseTopCards.innerHTML = "";
   els.chineseBottomCards.innerHTML = "";
-  els.chineseChoices.hidden = question?.mode === "word-match";
-  els.chineseMatchBoard.hidden = question?.mode !== "word-match";
+  els.chineseMatchBoard.dataset.mode = question?.mode || "";
+  els.chineseChoices.hidden = isChineseMatchQuestion(question);
+  els.chineseMatchBoard.hidden = !isChineseMatchQuestion(question);
 
-  if (question?.mode === "word-match") {
+  if (isChineseMatchQuestion(question)) {
     renderChineseMatch(question);
     renderChineseLevels();
     return;
@@ -1383,6 +1407,7 @@ els.backFromEnglishPractice.addEventListener("click", () => showEnglishMenu());
 els.openCharacterGame.addEventListener("click", () => startChinese("character"));
 els.openChineseWordGame.addEventListener("click", () => startChinese("word"));
 els.openChineseSentenceGame.addEventListener("click", () => startChinese("sentence"));
+els.openRadicalGame.addEventListener("click", () => startChinese("radical"));
 els.backFromChinesePractice.addEventListener("click", () => showChineseMenu());
 els.startPractice.addEventListener("click", () => setMode("practice"));
 els.startChallenge.addEventListener("click", () => setMode("challenge"));
@@ -1420,7 +1445,9 @@ els.resetEnglish.addEventListener("click", () => {
 });
 els.startChinese.addEventListener("click", () => startChinese(chineseState.mode));
 els.resetChinese.addEventListener("click", () => {
-  if (chineseState.mode === "word") {
+  if (chineseState.mode === "radical") {
+    chineseState.radicalLevelIndex = 0;
+  } else if (chineseState.mode === "word") {
     chineseState.wordLevelIndex = 0;
   } else if (chineseState.mode === "sentence") {
     chineseState.sentenceLevelIndex = 0;

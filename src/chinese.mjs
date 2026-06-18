@@ -38,6 +38,37 @@ const LESSON_ROWS = [
   ["常用偏旁", "原净冰单却欢观降都块场奇牵席张弯孤孩物新断转辆炼炮房扇忘想钱铅病端站裙初颜领甜乱粮赵赶跟跳躺霜雷", "yuán jìng bīng dān què huān guān jiàng dōu kuài chǎng qí qiān xí zhāng wān gū hái wù xīn duàn zhuǎn liàng liàn pào fáng shàn wàng xiǎng qián qiān bìng duān zhàn qún chū yán lǐng tián luàn liáng zhào gǎn gēn tiào tǎng shuāng léi", "原来 干净 冰雪 单独 冷却 欢乐 观看 降落 都是 一块 操场 奇怪 牵手 席子 张开 弯月 孤单 孩子 动物 新年 断开 转身 车辆 锻炼 鞭炮 房子 扇子 忘记 想念 钱包 铅笔 生病 端正 车站 裙子 当初 颜色 带领 甜美 乱跑 粮食 赵国 赶快 跟着 跳绳 躺下 秋霜 雷声"],
 ];
 
+const RADICALS = [
+  { symbol: "厂", name: "厂字头", examples: ["原"] },
+  { symbol: "冫", name: "两点水", examples: ["净", "冰"] },
+  { symbol: "丷", name: "倒八", examples: ["单"] },
+  { symbol: "卩", name: "单耳旁", examples: ["却"] },
+  { symbol: "又", name: "又字旁", examples: ["欢", "观"] },
+  { symbol: "阝", name: "双耳旁", examples: ["降", "都"] },
+  { symbol: "土", name: "提土旁", examples: ["块", "场"] },
+  { symbol: "大", name: "大字头", examples: ["奇", "牵"] },
+  { symbol: "广", name: "广字旁", examples: ["席"] },
+  { symbol: "弓", name: "弓字旁", examples: ["张", "弯"] },
+  { symbol: "子", name: "子字旁", examples: ["孤", "孩"] },
+  { symbol: "牛", name: "牛字旁", examples: ["物"] },
+  { symbol: "斤", name: "斤字旁", examples: ["新", "断"] },
+  { symbol: "车", name: "车字旁", examples: ["转", "辆"] },
+  { symbol: "火", name: "火字旁", examples: ["炼", "炮"] },
+  { symbol: "户", name: "户字头", examples: ["房", "扇"] },
+  { symbol: "心", name: "心字底", examples: ["忘", "想"] },
+  { symbol: "钅", name: "金字旁", examples: ["钱", "铅"] },
+  { symbol: "疒", name: "病字旁", examples: ["病"] },
+  { symbol: "立", name: "立字旁", examples: ["端", "站"] },
+  { symbol: "衤", name: "衣字旁", examples: ["裙", "初"] },
+  { symbol: "页", name: "页字边", examples: ["颜", "领"] },
+  { symbol: "舌", name: "舌字旁", examples: ["甜", "乱"] },
+  { symbol: "米", name: "米字旁", examples: ["粮"] },
+  { symbol: "走", name: "走字旁", examples: ["赵", "赶"] },
+  { symbol: "足", name: "足字旁", examples: ["跟", "跳"] },
+  { symbol: "身", name: "身字旁", examples: ["躺"] },
+  { symbol: "雨", name: "雨字头", examples: ["霜", "雷"] },
+];
+
 function parseLesson([title, charsText, pinyinText, wordsText], index) {
   const chars = Array.from(charsText);
   const pinyin = pinyinText.split(/\s+/);
@@ -171,6 +202,33 @@ export function createSentencePlan() {
   }));
 }
 
+export function createRadicalPlan() {
+  const groups = [];
+  for (let start = 0; start < RADICALS.length; start += 4) {
+    groups.push(RADICALS.slice(start, start + 4).map((item) => ({
+      ...item,
+      examples: [...item.examples],
+    })));
+  }
+  const quizzes = groups.map((items, index) => ({
+    id: `radical-quiz-${index + 1}`,
+    type: "radical-quiz",
+    title: `偏旁例字 ${index + 1}`,
+    description: "看偏旁名称，选择正确的例字。",
+    goalCorrect: items.length,
+    items,
+  }));
+  const matches = groups.map((items, index) => ({
+    id: `radical-match-${index + 1}`,
+    type: "radical-match",
+    title: `偏旁配对 ${index + 1}`,
+    description: "把偏旁名称和例字配成一组。",
+    goalCorrect: items.length,
+    items,
+  }));
+  return [...quizzes, ...matches];
+}
+
 function createCharacterQuestion(level, random, usedKeys) {
   const source = availableItems(level.items, usedKeys, (item) => `${level.id}:${item.char}`);
   const item = source[pickIndex(source.length, random)];
@@ -221,7 +279,48 @@ function createSentenceQuestion(level, random, usedKeys) {
   };
 }
 
+function createRadicalQuizQuestion(level, random, usedKeys) {
+  const source = availableItems(level.items, usedKeys, (item) => `${level.id}:${item.name}`);
+  const item = source[pickIndex(source.length, random)];
+  const answer = item.examples[0];
+  const distractors = level.items
+    .filter((candidate) => candidate.name !== item.name)
+    .map((candidate) => candidate.examples[0]);
+  return {
+    mode: "radical-quiz",
+    prompt: `${item.name}（${item.symbol}）的例字是？`,
+    fullSentence: `${item.name}（${item.symbol}）的例字是${answer}。`,
+    answer,
+    options: shuffle([answer, ...distractors], random),
+    questionKey: `${level.id}:${item.name}`,
+  };
+}
+
+function createRadicalMatchQuestion(level, random) {
+  const pairs = level.items.map((item) => {
+    const example = item.examples[0];
+    return {
+      top: `${item.name}（${item.symbol}）`,
+      bottom: example,
+      word: `${item.name}-${example}`,
+    };
+  });
+  return {
+    mode: "radical-match",
+    prompt: "偏旁和例字配一配",
+    fullSentence: pairs.map((pair) => `${pair.top}：${pair.bottom}`).join("，"),
+    answer: pairs[0]?.word || "",
+    pairs,
+    topOptions: shuffle(pairs.map((pair) => ({ char: pair.top, word: pair.word })), random),
+    bottomOptions: shuffle(pairs.map((pair) => ({ char: pair.bottom, word: pair.word })), random),
+    options: [],
+    questionKeys: pairs.map((pair) => `${level.id}:${pair.word}`),
+  };
+}
+
 export function createChineseQuestion(level, random = Math.random, usedKeys = new Set()) {
+  if (level.type === "radical-quiz") return createRadicalQuizQuestion(level, random, usedKeys);
+  if (level.type === "radical-match") return createRadicalMatchQuestion(level, random);
   if (level.id.startsWith("char-")) return createCharacterQuestion(level, random, usedKeys);
   if (level.id.startsWith("word-")) return createWordQuestion(level, random, usedKeys);
   return createSentenceQuestion(level, random, usedKeys);

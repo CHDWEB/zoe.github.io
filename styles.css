@@ -588,6 +588,12 @@ h2 {
   font-family: "KaiTi", "STKaiti", "Songti SC", serif;
 }
 
+.chinese-word[data-mode="radical-quiz"],
+.chinese-word[data-mode="radical-match"] {
+  font-size: clamp(1.8rem, 5vw, 3.2rem);
+  line-height: 1.25;
+}
+
 .chinese-match-board {
   display: grid;
   gap: 14px;
@@ -620,6 +626,13 @@ h2 {
   border-color: var(--mint);
   background: var(--mint-soft);
   color: var(--mint);
+}
+
+.chinese-match-board[data-mode="radical-match"] .match-row:first-child .match-card {
+  padding: 8px;
+  font-family: inherit;
+  font-size: clamp(0.92rem, 2.4vw, 1.35rem);
+  line-height: 1.2;
 }
 
 .match-lines {
